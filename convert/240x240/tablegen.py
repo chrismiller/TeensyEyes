@@ -85,106 +85,64 @@ for y in range(IMAGE.size[1]):
             ((p[1] & 0b11111100) << 3) | # to 16-bit value w/
             (p[2] >> 3))                 # 5/6/5-bit packing
 
-# OPEN AND VALIDATE UPPER EYELID THRESHOLD MAP (symmetrical) ---------------
 
-try:
-    FILENAME = sys.argv[3]
-except IndexError:
-    FILENAME = 'lid-upper-symmetrical.png' # Default if argv 3 not provided
-IMAGE = Image.open(FILENAME)
-if (IMAGE.size[0] != SCREEN_WIDTH) or (IMAGE.size[1] != SCREEN_HEIGHT):
-    sys.stderr.write('Upper lid (symmetrical) image size must match screen size')
-    exit(1)
-IMAGE = IMAGE.convert('L')
-PIXELS = IMAGE.load()
+def processLid(arg: int, default_filename: str, table_name: str):
+    # OPEN AND VALIDATE EYELID THRESHOLD LOOKUP TABLE ---------------
+    try:
+        filename = sys.argv[arg]
+    except IndexError:
+        # Use the provided default if an argument wasn't provided
+        filename = default_filename
 
-# GENERATE UPPER LID ARRAY (symmetrical) -----------------------------------
+    image = Image.open(filename)
+    if (image.size[0] != SCREEN_WIDTH) or (image.size[1] != SCREEN_HEIGHT):
+        sys.stderr.write('{} dimensions must match screen size of {}x{}'.format(filename, SCREEN_WIDTH, SCREEN_HEIGHT))
+        exit(1)
+    image = image.convert('L')
+    pixels = image.load()
+
+    sys.stdout.write('// An array of vertical start/stop locations for each {} eyelid column\n'.format(filename))
+    sys.stdout.write('const uint8_t {}[SCREEN_WIDTH][2] PROGMEM = {{'.format(table_name))
+    table = HexTable(image.size[0] * 2, 16, 2)
+
+    for x in range(image.size[0]):
+        found_start = False
+        found_end = False
+        y = 0
+        for y in range(image.size[1]):
+            if not found_start:
+                if pixels[x, y] > 0:
+                    table.write(y)
+                    found_start = True
+            elif not found_end:
+                if pixels[x, y] == 0:
+                    table.write(y)
+                    found_end = True
+                    break
+        if not found_start:
+            sys.stderr.write('{} doesn''t have an eyelid in column {}'.format(filename, y))
+            exit(1)
+        if not found_end:
+            # The eyelid goes all the way to the bottom of this column
+            table.write(SCREEN_HEIGHT)
+
 
 print('')
-print('#define SCREEN_WIDTH  ' + str(IMAGE.size[0]))
-print('#define SCREEN_HEIGHT ' + str(IMAGE.size[1]))
+print('#define SCREEN_WIDTH  ' + str(SCREEN_WIDTH))
+print('#define SCREEN_HEIGHT ' + str(SCREEN_HEIGHT))
 print('')
 print('#ifdef SYMMETRICAL_EYELID')
 print('')
-
-sys.stdout.write('const uint8_t upper[SCREEN_HEIGHT][SCREEN_WIDTH] PROGMEM = {')
-HEX = HexTable(IMAGE.size[0] * IMAGE.size[1], 12, 2)
-
-for y in range(IMAGE.size[1]):
-    for x in range(IMAGE.size[0]):
-        HEX.write(PIXELS[x, y]) # 8-bit value per pixel
-
-# OPEN AND VALIDATE LOWER EYELID THRESHOLD MAP (symmetrical) ---------------
-
-try:
-    FILENAME = sys.argv[4]
-except IndexError:
-    FILENAME = 'lid-lower-symmetrical.png' # Default if argv 4 not provided
-IMAGE = Image.open(FILENAME)
-if (IMAGE.size[0] != SCREEN_WIDTH) or (IMAGE.size[1] != SCREEN_HEIGHT):
-    sys.stderr.write('Lower lid (symmetrical) image size must match screen size')
-    exit(1)
-IMAGE = IMAGE.convert('L')
-PIXELS = IMAGE.load()
-
-# GENERATE LOWER LID ARRAY (symmetrical) -----------------------------------
-
+processLid(3, "upper-symmetrical.bmp", "upper")
 print('')
-sys.stdout.write('const uint8_t lower[SCREEN_HEIGHT][SCREEN_WIDTH] PROGMEM = {')
-HEX.reset(IMAGE.size[0] * IMAGE.size[1])
-
-for y in range(IMAGE.size[1]):
-    for x in range(IMAGE.size[0]):
-        HEX.write(PIXELS[x, y]) # 8-bit value per pixel
-
-# OPEN AND VALIDATE UPPER EYELID THRESHOLD MAP (asymmetrical) --------------
-
-try:
-    FILENAME = sys.argv[5]
-except IndexError:
-    FILENAME = 'lid-upper.png' # Default filename if argv 5 not provided
-IMAGE = Image.open(FILENAME)
-if (IMAGE.size[0] != SCREEN_WIDTH) or (IMAGE.size[1] != SCREEN_HEIGHT):
-    sys.stderr.write('Upper lid image size must match screen size')
-    exit(1)
-IMAGE = IMAGE.convert('L')
-PIXELS = IMAGE.load()
-
-# GENERATE UPPER LID ARRAY (asymmetrical) ----------------------------------
-
+processLid(4, "lower-symmetrical.bmp", "lower")
 print('')
 print('#else')
 print('')
-
-sys.stdout.write('const uint8_t upper[SCREEN_HEIGHT][SCREEN_WIDTH] PROGMEM = {')
-HEX.reset(IMAGE.size[0] * IMAGE.size[1])
-
-for y in range(IMAGE.size[1]):
-    for x in range(IMAGE.size[0]):
-        HEX.write(PIXELS[x, y]) # 8-bit value per pixel
-
-# OPEN AND VALIDATE LOWER EYELID THRESHOLD MAP (asymmetrical) --------------
-
-try:
-    FILENAME = sys.argv[6]
-except IndexError:
-    FILENAME = 'lid-lower.png' # Default filename if argv 6 not provided
-IMAGE = Image.open(FILENAME)
-if (IMAGE.size[0] != SCREEN_WIDTH) or (IMAGE.size[1] != SCREEN_HEIGHT):
-    sys.stderr.write('Lower lid image size must match screen size')
-    exit(1)
-IMAGE = IMAGE.convert('L')
-PIXELS = IMAGE.load()
-
-# GENERATE LOWER LID ARRAY (asymmetrical) ----------------------------------
-
+processLid(5, "upper.bmp", "upper")
 print('')
-sys.stdout.write('const uint8_t lower[SCREEN_HEIGHT][SCREEN_WIDTH] PROGMEM = {')
-HEX.reset(IMAGE.size[0] * IMAGE.size[1])
+processLid(6, "lower.bmp", "lower")
 
-for y in range(IMAGE.size[1]):
-    for x in range(IMAGE.size[0]):
-        HEX.write(PIXELS[x, y]) # 8-bit value per pixel
 
 # GENERATE POLAR COORDINATE TABLE ------------------------------------------
 

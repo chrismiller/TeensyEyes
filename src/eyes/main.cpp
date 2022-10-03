@@ -34,7 +34,6 @@
 #include <Adafruit_GFX.h>
 #include <GC9A01A_t3n.h>
 
-#include <GC9A01A_t3n_font_Arial.h>
 
 typedef struct {        // Struct is defined before including config.h --
   //int8_t  select;       // pin numbers for each eye's screen select line
@@ -216,6 +215,19 @@ void setup(void) {
 }
 
 
+static inline uint8_t upperThreshold(uint8_t x, uint8_t y) {
+  uint8_t start = upper[x][0];
+  uint8_t end = upper[x][1];
+  return y <= start ? 0 : y >= end ? 255 : (y - start) * 256 / (end - start);
+}
+
+static inline uint8_t lowerThreshold(uint8_t x, uint8_t y) {
+  uint8_t start = lower[x][0];
+  uint8_t end = lower[x][1];
+  return y <= start ? 255 : y >= end ? 0 : (end - y) * 256 / (end - start);
+}
+
+
 // EYE-RENDERING FUNCTION --------------------------------------------------
 
 SPISettings settings(SPI_FREQ, MSBFIRST, SPI_MODE0);
@@ -249,13 +261,14 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
 
   scleraXsave = scleraX; // Save initial X value to reset on each line
   irisY       = scleraY - (SCLERA_HEIGHT - IRIS_HEIGHT) / 2;
-  // Lets wait for any previous update screen to complete.
+  // Let's wait for any previous update screen to complete.
   for (screenY = 0; screenY < SCREEN_HEIGHT; screenY++, scleraY++, irisY++) {
     scleraX = scleraXsave;
     irisX   = scleraXsave - (SCLERA_WIDTH - IRIS_WIDTH) / 2;
     for (screenX = 0; screenX < SCREEN_WIDTH; screenX++, scleraX++, irisX++) {
-      if ((lower[screenY][screenX] <= lT) ||
-          (upper[screenY][screenX] <= uT)) {             // Covered by eyelid
+      if ((lowerThreshold(screenX, screenY) <= lT) ||
+          (upperThreshold(screenX, screenY) <= uT)) {
+        // Covered by eyelid
         p = 0;
       } else if ((irisY < 0) || (irisY >= IRIS_HEIGHT) ||
                  (irisX < 0) || (irisX >= IRIS_WIDTH)) { // In sclera
@@ -295,20 +308,6 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
     Serial.printf("%4u : %6u %6u %4u:%4u %4u:%4u\n", iScale, irisThreshold, irisScale, min_d, max_d, min_a, max_a);
   }
 #endif
-
-  static elapsedMillis ms{};
-  static int fps{};
-
-  fps++;
-
-  if (ms >= 1000L) {
-    eye[e].display->setTextSize(2);
-    eye[e].display->setTextColor(WHITE, BLACK);
-    eye[e].display->drawNumber(fps, 100, 30);
-    fps = 0;
-    ms = 0L;
-  }
-
 
 #if defined(USE_ASYNC_UPDATES)
   if (!eye[e].display->updateScreenAsync()) {
@@ -520,12 +519,14 @@ void frame( // Process motion for a single frame of left or right eye
   static uint16_t uThreshold = DISPLAY_SIZE;
   uint16_t        lThreshold, n;
 #ifdef TRACKING
-  int16_t sampleX = SCLERA_WIDTH  / 2 - (eyeX / 2), // Reduce X influence
-          sampleY = SCLERA_HEIGHT / 2 - (eyeY + IRIS_HEIGHT / 4);
+  int16_t sampleX = SCLERA_WIDTH  / 2 - (eyeX / 2);    // Reduce X influence
+  int16_t sampleY = SCLERA_HEIGHT / 2 - (eyeY + IRIS_HEIGHT / 4);
   // Eyelid is slightly asymmetrical, so two readings are taken, averaged
-  if (sampleY < 0) n = 0;
-  else            n = (upper[sampleY][sampleX] +
-                         upper[sampleY][SCREEN_WIDTH - 1 - sampleX]) / 2;
+  if (sampleY < 0) {
+    n = 0;
+  } else {
+    n = (upperThreshold(sampleX, sampleY) + upperThreshold(SCREEN_WIDTH - 1 - sampleX, sampleY)) / 2;
+  }
   uThreshold = (uThreshold * 3 + n) / 4; // Filter/soften motion
   // Lower eyelid doesn't track the same way, but seems to be pulled upward
   // by tension from the upper lid.
