@@ -54,6 +54,11 @@ typedef GC9A01A_t3n displayType; // Using TFT display(s)
 
 #define RGBColor(r, g, b) GC9A01A_t3n::Color565(r, g, b)
 
+typedef struct {
+  uint8_t upperLid;
+  uint8_t lowerLid;
+} lidState;
+
 // A simple state machine is used to control eye blinks/winks:
 #define NOBLINK 0       // Not currently engaged in a blink
 #define ENBLINK 1       // Eyelid is currently closing
@@ -62,6 +67,9 @@ typedef struct {
   uint8_t  state;       // NOBLINK/ENBLINK/DEBLINK
   uint32_t duration;    // Duration of blink state (micros)
   uint32_t startTime;   // Time (micros) of last state change
+  // Store the last top/bottom lid location, per column. This allows us to avoid redrawing eyelid pixels that
+  // were already drawn in the previous frame, giving us a ~10% speedup
+  lidState lastLid[DISPLAY_SIZE];
 } eyeBlink;
 
 #define NUM_EYES (sizeof eyeInfo / sizeof eyeInfo[0]) // config.h pin list
@@ -106,6 +114,11 @@ void setup(void) {
     eye[e].display = new displayType(eyeInfo[e].cs, eyeInfo[e].dc, eyeInfo[e].rst,
                                      eyeInfo[e].mosi, eyeInfo[e].sck);
     eye[e].blink.state = NOBLINK;
+    for (int i = 0; i < SCREEN_HEIGHT; i++) {
+      eye[e].blink.lastLid[i].upperLid = 0;
+      eye[e].blink.lastLid[i].lowerLid = 255;
+    }
+
     // If project involves only ONE eye and NO other SPI devices, its
     // select line can be permanently tied to GND and corresponding pin
     // in config.h set to -1.  Best to use it though.
@@ -215,18 +228,29 @@ void setup(void) {
 }
 
 
-static inline uint8_t upperThreshold(uint8_t x, uint8_t y) {
-  uint8_t start = upper[x][0];
-  uint8_t end = upper[x][1];
+inline uint8_t upperThreshold(uint8_t x, uint8_t y) {
+  const uint8_t start = upper[x][0];
+  const uint8_t end = upper[x][1];
   return y <= start ? 0 : y >= end ? 255 : (y - start) * 256 / (end - start);
 }
 
-static inline uint8_t lowerThreshold(uint8_t x, uint8_t y) {
-  uint8_t start = lower[x][0];
-  uint8_t end = lower[x][1];
+inline uint8_t lowerThreshold(uint8_t x, uint8_t y) {
+  const uint8_t start = lower[x][0];
+  const uint8_t end = lower[x][1];
   return y <= start ? 255 : y >= end ? 0 : (end - y) * 256 / (end - start);
 }
 
+inline uint8_t upperLid(uint8_t x, uint8_t threshold) {
+  const uint8_t start = upper[x][0];
+  const uint8_t end = upper[x][1];
+  return start + threshold * (end - start) / 256;
+}
+
+inline uint8_t lowerLid(uint8_t x, uint8_t threshold) {
+  const uint8_t start = lower[x][0];
+  const uint8_t end = lower[x][1];
+  return end - threshold * (end - start) / 255;
+}
 
 // EYE-RENDERING FUNCTION --------------------------------------------------
 
@@ -240,7 +264,7 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
     uint8_t  uT,      // Upper eyelid threshold value
     uint8_t  lT) {    // Lower eyelid threshold value
 
-  uint8_t  screenX, screenY;
+  int      screenX, screenY;
   uint16_t scleraXsave;
   int16_t  irisX, irisY;
   uint16_t p, a;
@@ -250,55 +274,76 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
   uint16_t min_d = 0xff;
   uint16_t min_a = 0xff;
 
-  uint32_t  irisThreshold = (DISPLAY_SIZE * (1023 - iScale) + 512) / 1024;
-  uint32_t irisScale     = IRIS_MAP_HEIGHT * 65536 / irisThreshold;
+  const uint32_t irisThreshold = (DISPLAY_SIZE * (1023 - iScale) + 512) / 1024;
+  const uint32_t irisScale     = IRIS_MAP_HEIGHT * 65536 / irisThreshold;
 
+  displayType &display = *eye[e].display;
+  eyeBlink &blink = eye[e].blink;
 
   // Set up raw pixel dump to entire screen.  Although such writes can wrap
   // around automatically from end of rect back to beginning, the region is
   // reset on each frame here in case of an SPI glitch.
   // Now just issue raw 16-bit values for every pixel...
 
-  scleraXsave = scleraX; // Save initial X value to reset on each line
-  irisY       = scleraY - (SCLERA_HEIGHT - IRIS_HEIGHT) / 2;
-  // Let's wait for any previous update screen to complete.
-  for (screenY = 0; screenY < SCREEN_HEIGHT; screenY++, scleraY++, irisY++) {
+    scleraXsave = scleraX; // Save initial X value to reset on each line
+    irisY       = scleraY - (SCLERA_HEIGHT - IRIS_HEIGHT) / 2;
+    for (screenY = 0; screenY < SCREEN_HEIGHT; screenY++, scleraY++, irisY++) {
     scleraX = scleraXsave;
     irisX   = scleraXsave - (SCLERA_WIDTH - IRIS_WIDTH) / 2;
     for (screenX = 0; screenX < SCREEN_WIDTH; screenX++, scleraX++, irisX++) {
-      if ((lowerThreshold(screenX, screenY) <= lT) ||
-          (upperThreshold(screenX, screenY) <= uT)) {
-        // Covered by eyelid
+      // If this pixel is covered by an eyelid, check if we even need to draw it,
+      // or it was already drawn in the previous frame
+      bool const inTopLid = upperThreshold(screenX, screenY) <= uT;
+      bool const inBottomLid = lowerThreshold(screenX, screenY) <= lT;
+      if (inTopLid) {
+        if (blink.lastLid[screenX].upperLid >= screenY) {
+          continue;
+        }
         p = 0;
-      } else if ((irisY < 0) || (irisY >= IRIS_HEIGHT) ||
-                 (irisX < 0) || (irisX >= IRIS_WIDTH)) { // In sclera
-        p = sclera[scleraY][scleraX];
-      } else {                                          // Maybe iris...
-        p = polar[irisY][irisX];                        // Polar angle/dist
-        d = p & 0x7F;                                   // Distance from edge (0-127)
-        if (d < irisThreshold) {                        // Within scaled iris area
-          d = d * irisScale / 65536;                    // d scaled to iris image height
-          a = (IRIS_MAP_WIDTH * (p >> 7)) / 512;        // Angle (X)
-          p = iris[d][a];                               // Pixel = iris
-          if (d > max_d) max_d = d;
-          if (a > max_a) max_a = a;
-          if (d < min_d) min_d = d;
-          if (a < min_a) min_a = a;
-        } else {                                        // Not in iris
-          p = sclera[scleraY][scleraX];                 // Pixel = sclera
+      } else if (inBottomLid) {
+        if (blink.lastLid[screenX].lowerLid <= screenY) {
+          continue;
+        }
+        p = 0;
+      } else {
+        // We're in the eye rather than the eyelid
+        if ((irisY < 0) || (irisY >= IRIS_HEIGHT) ||
+            (irisX < 0) || (irisX >= IRIS_WIDTH)) { // In sclera
+          p = sclera[scleraY][scleraX];
+        } else {                                          // Maybe iris...
+          p = polar[irisY][irisX];                        // Polar angle/dist
+          d = p & 0x7F;                                   // Distance from edge (0-127)
+          if (d < irisThreshold) {                        // Within scaled iris area
+            d = d * irisScale / 65536;                    // d scaled to iris image height
+            a = (IRIS_MAP_WIDTH * (p >> 7)) / 512;        // Angle (X)
+            p = iris[d][a];                               // Pixel = iris
+            if (d > max_d) max_d = d;
+            if (a > max_a) max_a = a;
+            if (d < min_d) min_d = d;
+            if (a < min_a) min_a = a;
+          } else {                                        // Not in iris
+            p = sclera[scleraY][scleraX];                 // Pixel = sclera
+          }
         }
       }
 
-      eye[e].display->drawPixel(screenX, screenY, p);
+      display.drawPixel(screenX, screenY, p);
     } // end column
   } // end scanline
+
+  // Store the eyelid upper/lower locations for the next iteration
+  for (int x = 0; x < SCREEN_WIDTH; x++) {
+    blink.lastLid[x].upperLid = upperLid(x, uT);
+    blink.lastLid[x].lowerLid = lowerLid(x, lT);
+  }
+
 #ifdef DEBUG_ST7789
-  eye[e].display->setCursor(0, 0);
-  eye[e].display->setTextSize(2);
-  eye[e].display->setTextColor(ST77XX_RED, ST77XX_BLACK);
-  eye[e].display->printf("%4u %4u %5u\n(%3u,%3u)", iScale, irisThreshold, irisScale, scleraX, scleraY);
-  eye[e].display->setCursor(0, DISPLAY_SIZE - 20);
-  eye[e].display->printf("%u %3u %3u %3u %3u\n", uT, lT, eye[e].blink.state, max_d, max_a);
+  display.setCursor(0, 0);
+  display.setTextSize(2);
+  display.setTextColor(ST77XX_RED, ST77XX_BLACK);
+  display.printf("%4u %4u %5u\n(%3u,%3u)", iScale, irisThreshold, irisScale, scleraX, scleraY);
+  display.setCursor(0, DISPLAY_SIZE - 20);
+  display.printf("%u %3u %3u %3u %3u\n", uT, lT, blink.state, max_d, max_a);
 
   // Debug
   static uint32_t iScale_printed[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
