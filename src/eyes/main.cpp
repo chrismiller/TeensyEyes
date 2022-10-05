@@ -33,16 +33,17 @@
 #include <SPI.h>
 #include <Adafruit_GFX.h>
 #include <GC9A01A_t3n.h>
+#include <array>
 
 
 typedef struct {        // Struct is defined before including config.h --
   //int8_t  select;       // pin numbers for each eye's screen select line
-  int8_t  cs;            // Chip select pin.
-  int8_t  dc;            // DC pin
-  int8_t  mosi;         // mosi
-  int8_t  sck;          // sck pin
-  int8_t  rst;          // reset pin
-  int8_t  wink;         // and wink button (or -1 if none) specified there,
+  int8_t cs;            // Chip select pin.
+  int8_t dc;            // DC pin
+  int8_t mosi;         // mosi
+  int8_t sck;          // sck pin
+  int8_t rst;          // reset pin
+  int8_t wink;         // and wink button (or -1 if none) specified there,
   uint8_t rotation;     // also display rotation.
   uint8_t init_option;  // option for Init
 } eyeInfo_t;
@@ -65,7 +66,7 @@ typedef struct {
 #define ENBLINK 1       // Eyelid is currently closing
 #define DEBLINK 2       // Eyelid is currently opening
 typedef struct {
-  uint8_t  state;       // NOBLINK/ENBLINK/DEBLINK
+  uint8_t state;       // NOBLINK/ENBLINK/DEBLINK
   uint32_t duration;    // Duration of blink state (micros)
   uint32_t startTime;   // Time (micros) of last state change
   // Store the last top/bottom lid location, per column. This allows us to avoid redrawing eyelid pixels that
@@ -77,15 +78,36 @@ typedef struct {
 
 struct {                // One-per-eye structure
   displayType *display; // -> OLED/TFT object
-  eyeBlink     blink;   // Current blink/wink state
+  eyeBlink blink;   // Current blink/wink state
 } eyes[NUM_EYES];
 
 
 uint32_t startTime;  // For FPS indicator
 
-EyeParams currentEye = defaultEye::params;
+std::array<EyeParams, 2> eyeList{defaultEye::params, newtEye::params};
+
+EyeParams *currentEye = &eyeList[0];
+
+int eyeIndex{};
+
+void nextEye() {
+  eyeIndex = (eyeIndex + 1) % eyeList.size();
+  currentEye = &eyeList[eyeIndex];
+
+  Serial.print("nextEye() ");
+  Serial.println(eyeIndex);
+
+  // Reset the eyelid boundaries so they get fully drawn on initial render
+  for (int i = 0; i < screenWidth; i++) {
+    for (auto e: eyes) {
+      e.blink.lastLid[i].upperLid = 0;
+      e.blink.lastLid[i].lowerLid = 255;
+    }
+  }
+}
 
 void DumpMemoryInfo();
+
 void EstimateStackUsage();
 
 // INITIALIZATION -- runs once at startup ----------------------------------
@@ -93,7 +115,7 @@ void EstimateStackUsage();
 void setup(void) {
   uint8_t e; // Eye index, 0 to NUM_EYES-1
   Serial.begin(115200);
-  while (!Serial && millis() < 2000 );
+  while (!Serial && millis() < 2000);
   delay(500);
   DumpMemoryInfo();
   Serial.println("Init");
@@ -109,7 +131,8 @@ void setup(void) {
 
   // Initialize eye objects based on eyeInfo list in config.h:
   for (e = 0; e < NUM_EYES; e++) {
-    Serial.print("Create display #"); Serial.println(e);
+    Serial.print("Create display #");
+    Serial.println(e);
     //eye[e].display     = new displayType(&TFT_SPI, eyeInfo[e].cs,
     //                       DISPLAY_DC, -1);
     //for SPI
@@ -117,10 +140,6 @@ void setup(void) {
     eyes[e].display = new displayType(eyeInfo[e].cs, eyeInfo[e].dc, eyeInfo[e].rst,
                                       eyeInfo[e].mosi, eyeInfo[e].sck);
     eyes[e].blink.state = NOBLINK;
-    for (int i = 0; i < screenWidth; i++) {
-      eyes[e].blink.lastLid[i].upperLid = 0;
-      eyes[e].blink.lastLid[i].lowerLid = 255;
-    }
 
     // If project involves only ONE eye and NO other SPI devices, its
     // select line can be permanently tied to GND and corresponding pin
@@ -153,7 +172,8 @@ void setup(void) {
   // After all-displays reset, now call init/begin func for each display:
   for (e = 0; e < NUM_EYES; e++) {
     eyes[e].display->begin();
-    Serial.print("Init ST77xx display #"); Serial.println(e);
+    Serial.print("Init ST77xx display #");
+    Serial.println(e);
     Serial.println("Rotate");
     eyes[e].display->setRotation(eyeInfo[e].rotation);
   }
@@ -210,7 +230,7 @@ void setup(void) {
   // then reversed when drawing this eye, so they move the same.  Magic!
   // The values for setRotation would be: 0XC8(-MX), 0xA8(+MY), 0x8(-MX), 0x68(+MY)
   // 0xC0, A0, 0, 60
-  const uint8_t mirrorTFT[]  = { 0x8, 0x20, 0x40, 0xE0 }; // Mirror+rotate
+  const uint8_t mirrorTFT[] = {0x8, 0x20, 0x40, 0xE0}; // Mirror+rotate
   eyes[0].display->sendCommand(
       GC9A01A_MADCTL, // Current TFT lib
       &mirrorTFT[eyeInfo[0].rotation & 3], 1);
@@ -227,31 +247,33 @@ void setup(void) {
     }
   }
 
+  nextEye();
+  
   startTime = millis(); // For frame-rate calculation
 }
 
 
 inline uint8_t upperThreshold(uint8_t x, uint8_t y) {
-  const uint8_t start = currentEye.upperLid[x * 2];
-  const uint8_t end = currentEye.upperLid[x * 2 + 1];
+  const uint8_t start = currentEye->upperLid[x * 2];
+  const uint8_t end = currentEye->upperLid[x * 2 + 1];
   return y <= start ? 0 : y >= end ? 255 : (y - start) * 256 / (end - start);
 }
 
 inline uint8_t lowerThreshold(uint8_t x, uint8_t y) {
-  const uint8_t start = currentEye.lowerLid[x * 2];
-  const uint8_t end = currentEye.lowerLid[x * 2 + 1];
+  const uint8_t start = currentEye->lowerLid[x * 2];
+  const uint8_t end = currentEye->lowerLid[x * 2 + 1];
   return y <= start ? 255 : y >= end ? 0 : (end - y) * 256 / (end - start);
 }
 
 inline uint8_t upperLid(uint8_t x, uint8_t threshold) {
-  const uint8_t start = currentEye.upperLid[x * 2];
-  const uint8_t end = currentEye.upperLid[x * 2 + 1];
+  const uint8_t start = currentEye->upperLid[x * 2];
+  const uint8_t end = currentEye->upperLid[x * 2 + 1];
   return start + threshold * (end - start) / 256;
 }
 
 inline uint8_t lowerLid(uint8_t x, uint8_t threshold) {
-  const uint8_t start = currentEye.lowerLid[x * 2];
-  const uint8_t end = currentEye.lowerLid[x * 2 + 1];
+  const uint8_t start = currentEye->lowerLid[x * 2];
+  const uint8_t end = currentEye->lowerLid[x * 2 + 1];
   return end - threshold * (end - start) / 255;
 }
 
@@ -260,16 +282,16 @@ inline uint8_t lowerLid(uint8_t x, uint8_t threshold) {
 SPISettings settings(SPI_FREQ, MSBFIRST, SPI_MODE0);
 
 void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
-    uint8_t  e,       // Eye array index; 0 or 1 for left/right
+    uint8_t e,       // Eye array index; 0 or 1 for left/right
     uint16_t iScale,  // Scale factor for iris (0-1023)
-    uint16_t  scleraX, // First pixel X offset into sclera image
-    uint16_t  scleraY, // First pixel Y offset into sclera image
-    uint8_t  uT,      // Upper eyelid threshold value
-    uint8_t  lT) {    // Lower eyelid threshold value
+    uint16_t scleraX, // First pixel X offset into sclera image
+    uint16_t scleraY, // First pixel Y offset into sclera image
+    uint8_t uT,      // Upper eyelid threshold value
+    uint8_t lT) {    // Lower eyelid threshold value
 
-  int      screenX, screenY;
+  int screenX, screenY;
   uint16_t scleraXsave;
-  int16_t  irisX, irisY;
+  int16_t irisX, irisY;
   uint16_t p, a;
   uint32_t d;
   uint16_t max_d = 0;
@@ -278,7 +300,7 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
   uint16_t min_a = 0xff;
 
   const uint32_t irisThreshold = (DISPLAY_SIZE * (1023 - iScale) + 512) / 1024;
-  const uint32_t irisScale     = currentEye.iris.height * 65536 / irisThreshold;
+  const uint32_t irisScale = currentEye->iris.height * 65536 / irisThreshold;
 
   displayType &display = *eyes[e].display;
   eyeBlink &blink = eyes[e].blink;
@@ -288,11 +310,11 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
   // reset on each frame here in case of an SPI glitch.
   // Now just issue raw 16-bit values for every pixel...
 
-    scleraXsave = scleraX; // Save initial X value to reset on each line
-    irisY       = scleraY - (currentEye.sclera.height - currentEye.polar.height) / 2;
-    for (screenY = 0; screenY < screenHeight; screenY++, scleraY++, irisY++) {
+  scleraXsave = scleraX; // Save initial X value to reset on each line
+  irisY = scleraY - (currentEye->sclera.height - currentEye->polar.height) / 2;
+  for (screenY = 0; screenY < screenHeight; screenY++, scleraY++, irisY++) {
     scleraX = scleraXsave;
-    irisX   = scleraXsave - (currentEye.sclera.width - currentEye.polar.width) / 2;
+    irisX = scleraXsave - (currentEye->sclera.width - currentEye->polar.width) / 2;
     for (screenX = 0; screenX < screenWidth; screenX++, scleraX++, irisX++) {
       // If this pixel is covered by an eyelid, check if we even need to draw it,
       // or it was already drawn in the previous frame
@@ -310,23 +332,23 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
         p = 0;
       } else {
         // We're in the eye rather than the eyelid
-        if ((irisY < 0) || (irisY >= currentEye.polar.height) ||
-            (irisX < 0) || (irisX >= currentEye.polar.width)) { // In sclera
-          p = currentEye.sclera.get(scleraX, scleraY);
+        if ((irisY < 0) || (irisY >= currentEye->polar.height) ||
+            (irisX < 0) || (irisX >= currentEye->polar.width)) { // In sclera
+          p = currentEye->sclera.get(scleraX, scleraY);
         } else {                                          // Maybe iris...
-          p = currentEye.polar.get(irisX, irisY);  // Polar angle/dist
+          p = currentEye->polar.get(irisX, irisY);  // Polar angle/dist
           d = p & 0x7F;                                   // Distance from edge (0-127)
           if (d < irisThreshold) {                        // Within scaled iris area
             d = d * irisScale / 65536;                    // d scaled to iris image height
-            a = (currentEye.iris.width * (p >> 7)) / 512; // Angle (X)
-            p = currentEye.iris.get(a, d);         // Pixel = iris
+            a = (currentEye->iris.width * (p >> 7)) / 512; // Angle (X)
+            p = currentEye->iris.get(a, d);         // Pixel = iris
             if (d > max_d) max_d = d;
             if (a > max_a) max_a = a;
             if (d < min_d) min_d = d;
             if (a < min_a) min_a = a;
           } else {
             // Not in iris
-            p = currentEye.sclera.get(scleraX, scleraY);
+            p = currentEye->sclera.get(scleraX, scleraY);
           }
         }
       }
@@ -358,6 +380,24 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
   }
 #endif
 
+
+  // ==================================================================================
+  // FPS counter
+  static elapsedMillis ms{};
+  static int fps{};
+  static int count{};
+  count++;
+  if (ms >= 1000L) {
+    fps = count;
+    count = 0;
+    ms = 0L;
+  }
+  eyes[e].display->setTextSize(2);
+  eyes[e].display->setTextColor(WHITE, BLACK);
+  eyes[e].display->drawNumber(fps, 100, 100);
+  // ==================================================================================
+
+
 #if defined(USE_ASYNC_UPDATES)
   if (!eyes[e].display->updateScreenAsync()) {
     Serial.printf("%d : updateScreenAsync FAILED\n", e);
@@ -372,8 +412,8 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
 // EYE ANIMATION -----------------------------------------------------------
 
 const uint8_t ease[] PROGMEM = { // Ease in/out curve for eye movements 3*t^2-2*t^3
-    0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  2,  2,  2,  3,   // T
-    3,  3,  4,  4,  4,  5,  5,  6,  6,  7,  7,  8,  9,  9, 10, 10,   // h
+    0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 3,   // T
+    3, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 8, 9, 9, 10, 10,   // h
     11, 12, 12, 13, 14, 15, 15, 16, 17, 18, 18, 19, 20, 21, 22, 23,   // x
     24, 25, 26, 27, 27, 28, 29, 30, 31, 33, 34, 35, 36, 37, 38, 39,   // 2
     40, 41, 42, 44, 45, 46, 47, 48, 50, 51, 52, 53, 54, 56, 57, 58,   // A
@@ -395,20 +435,20 @@ uint32_t timeOfLastBlink = 0L, timeToNextBlink = 0L;
 #endif
 
 void frame( // Process motion for a single frame of left or right eye
-    uint16_t        iScale) {     // Iris scale (0-1023) passed in
-  static uint32_t frames   = 0; // Used in frame rate calculation
-  static uint8_t  eyeIndex = 0; // eye[] array counter
-  int16_t         eyeX, eyeY;
+    uint16_t iScale) {     // Iris scale (0-1023) passed in
+  static uint32_t frames = 0; // Used in frame rate calculation
+  static uint8_t eyeIndex = 0; // eye[] array counter
+  int16_t eyeX, eyeY;
 
   if (++eyeIndex >= NUM_EYES) eyeIndex = 0; // Cycle through eyes, 1 per call
 #if defined(USE_ASYNC_UPDATES)
   elapsedMillis emWait = 0;
-  while (eyes[eyeIndex].display->asyncUpdateActive() && (emWait < 1000)) ;
+  while (eyes[eyeIndex].display->asyncUpdateActive() && (emWait < 1000));
   if (emWait >= 1000) Serial.println("Long wait");
 #endif
 
 
-  uint32_t        t = micros(); // Time at start of function
+  uint32_t t = micros(); // Time at start of function
 
   if (!(++frames & 255)) { // Every 256 frames...
     uint32_t elapsed = (millis() - startTime) / 1000;
@@ -444,16 +484,16 @@ void frame( // Process motion for a single frame of left or right eye
   // Periodically initiates motion to a new random point, random speed,
   // holds there for random period until next motion.
 
-  static boolean  eyeInMotion      = false;
-  static int16_t  eyeOldX = 512, eyeOldY = 512, eyeNewX = 512, eyeNewY = 512;
+  static boolean eyeInMotion = false;
+  static int16_t eyeOldX = 512, eyeOldY = 512, eyeNewX = 512, eyeNewY = 512;
   static uint32_t eyeMoveStartTime = 0L;
-  static int32_t  eyeMoveDuration  = 0L;
+  static int32_t eyeMoveDuration = 0L;
 
   int32_t dt = t - eyeMoveStartTime;      // uS elapsed since last eye event
   if (eyeInMotion) {                      // Currently moving?
     if (dt >= eyeMoveDuration) {          // Time up?  Destination reached.
-      eyeInMotion      = false;           // Stop moving
-      eyeMoveDuration  = random(3000000); // 0-3 sec stop
+      eyeInMotion = false;           // Stop moving
+      eyeMoveDuration = random(3000000); // 0-3 sec stop
       eyeMoveStartTime = t;               // Save initial time of stop
       eyeX = eyeOldX = eyeNewX;           // Save position
       eyeY = eyeOldY = eyeNewY;
@@ -466,17 +506,17 @@ void frame( // Process motion for a single frame of left or right eye
     eyeX = eyeOldX;
     eyeY = eyeOldY;
     if (dt > eyeMoveDuration) {           // Time up?  Begin new move.
-      int16_t  dx, dy;
+      int16_t dx, dy;
       uint32_t d;
       do {                                // Pick new dest in circle
         eyeNewX = random(1024);
         eyeNewY = random(1024);
-        dx      = (eyeNewX * 2) - 1023;
-        dy      = (eyeNewY * 2) - 1023;
+        dx = (eyeNewX * 2) - 1023;
+        dy = (eyeNewY * 2) - 1023;
       } while ((d = (dx * dx + dy * dy)) > (1023 * 1023)); // Keep trying
-      eyeMoveDuration  = random(72000, 144000); // ~1/14 - ~1/7 sec
+      eyeMoveDuration = random(72000, 144000); // ~1/14 - ~1/7 sec
       eyeMoveStartTime = t;               // Save initial time of move
-      eyeInMotion      = true;            // Start move on next frame
+      eyeInMotion = true;            // Start move on next frame
       //Serial.printf("%d: Motion: %d %d (%d,%d)\n", eyeIndex, eyeMoveStartTime,
       //eyeMoveDuration, dx, dy);
     }
@@ -495,9 +535,9 @@ void frame( // Process motion for a single frame of left or right eye
     // Set up durations for both eyes (if not already winking)
     for (uint8_t e = 0; e < NUM_EYES; e++) {
       if (eyes[e].blink.state == NOBLINK) {
-        eyes[e].blink.state     = ENBLINK;
+        eyes[e].blink.state = ENBLINK;
         eyes[e].blink.startTime = t;
-        eyes[e].blink.duration  = blinkDuration;
+        eyes[e].blink.duration = blinkDuration;
       }
     }
     timeToNextBlink = blinkDuration * 3 + random(4000000);
@@ -513,7 +553,7 @@ void frame( // Process motion for a single frame of left or right eye
           (digitalRead(BLINK_PIN) == LOW) ||           // blink or wink held...
 #endif
           ((eyeInfo[eyeIndex].wink >= 0) &&
-           digitalRead(eyeInfo[eyeIndex].wink) == LOW) )) {
+           digitalRead(eyeInfo[eyeIndex].wink) == LOW))) {
         // Don't advance state yet -- eye is held closed instead
       } else { // No buttons, or other state...
         if (++eyes[eyeIndex].blink.state > DEBLINK) { // Deblinking finished?
@@ -540,25 +580,25 @@ void frame( // Process motion for a single frame of left or right eye
 #endif
     if ((eyeInfo[eyeIndex].wink >= 0) &&
         (digitalRead(eyeInfo[eyeIndex].wink) == LOW)) { // Wink!
-      eyes[eyeIndex].blink.state     = ENBLINK;
+      eyes[eyeIndex].blink.state = ENBLINK;
       eyes[eyeIndex].blink.startTime = t;
-      eyes[eyeIndex].blink.duration  = random(45000, 90000);
+      eyes[eyeIndex].blink.duration = random(45000, 90000);
     }
   }
 
   // Process motion, blinking and iris scale into renderable values
 
   // Scale eye X/Y positions (0-1023) to pixel units used by drawEye()
-  eyeX = map(eyeX, 0, 1023, 0, currentEye.sclera.width - DISPLAY_SIZE);
-  eyeY = map(eyeY, 0, 1023, 0, currentEye.sclera.width - DISPLAY_SIZE);
-  if (eyeIndex == 1) eyeX = (currentEye.sclera.width - DISPLAY_SIZE) - eyeX; // Mirrored display
+  eyeX = map(eyeX, 0, 1023, 0, currentEye->sclera.width - DISPLAY_SIZE);
+  eyeY = map(eyeY, 0, 1023, 0, currentEye->sclera.width - DISPLAY_SIZE);
+  if (eyeIndex == 1) eyeX = (currentEye->sclera.width - DISPLAY_SIZE) - eyeX; // Mirrored display
 
   // Horizontal position is offset so that eyes are very slightly crossed
   // to appear fixated (converged) at a conversational distance.  Number
   // here was extracted from my posterior and not mathematically based.
   // I suppose one could get all clever with a range sensor, but for now...
   if (NUM_EYES > 1) eyeX += 4;
-  if (eyeX > (currentEye.sclera.width - DISPLAY_SIZE)) eyeX = (currentEye.sclera.height - DISPLAY_SIZE);
+  if (eyeX > (currentEye->sclera.width - DISPLAY_SIZE)) eyeX = (currentEye->sclera.height - DISPLAY_SIZE);
 
   // Eyelids are rendered using a brightness threshold image.  This same
   // map can be used to simplify another problem: making the upper eyelid
@@ -566,10 +606,10 @@ void frame( // Process motion for a single frame of left or right eye
   // down and the upper eyelid drops).  Just sample a point in the upper
   // lid map slightly above the pupil to determine the rendering threshold.
   static uint16_t uThreshold = DISPLAY_SIZE;
-  uint16_t        lThreshold, n;
+  uint16_t lThreshold, n;
 #ifdef TRACKING
-  int16_t sampleX = currentEye.sclera.width  / 2 - (eyeX / 2);    // Reduce X influence
-  int16_t sampleY = currentEye.sclera.height / 2 - (eyeY + currentEye.iris.height / 4);
+  int16_t sampleX = currentEye->sclera.width / 2 - (eyeX / 2);    // Reduce X influence
+  int16_t sampleY = currentEye->sclera.height / 2 - (eyeY + currentEye->iris.height / 4);
   // Eyelid is slightly asymmetrical, so two readings are taken, averaged
   if (sampleY < 0) {
     n = 0;
@@ -590,11 +630,11 @@ void frame( // Process motion for a single frame of left or right eye
     uint32_t s = (t - eyes[eyeIndex].blink.startTime);
     if (s >= eyes[eyeIndex].blink.duration) s = 255;  // At or past blink end
     else s = 255 * s / eyes[eyeIndex].blink.duration; // Mid-blink
-    s          = (eyes[eyeIndex].blink.state == DEBLINK) ? 1 + s : 256 - s;
-    n          = (uThreshold * s + 254 * (257 - s)) / 256;
+    s = (eyes[eyeIndex].blink.state == DEBLINK) ? 1 + s : 256 - s;
+    n = (uThreshold * s + 254 * (257 - s)) / 256;
     lThreshold = (lThreshold * s + 254 * (257 - s)) / 256;
   } else {
-    n          = uThreshold;
+    n = uThreshold;
   }
 
   // Pass all the derived values to the eye-rendering function:
@@ -605,35 +645,42 @@ void frame( // Process motion for a single frame of left or right eye
 
 #if !defined(LIGHT_PIN) || (LIGHT_PIN < 0)
 
-// Autonomous iris motion uses a fractal behavior to similate both the major
+// Autonomous iris motion uses a fractal behavior to simulate both the major
 // reaction of the eye plus the continuous smaller adjustments that occur.
 
-uint16_t oldIris = (currentEye.irisMin + currentEye.irisMin) / 2, newIris;
+uint16_t oldIris = (currentEye->irisMin + currentEye->irisMin) / 2, newIris;
 
-void split( // Subdivides motion path into two sub-paths w/randimization
-    int16_t  startValue, // Iris scale value (IRIS_MIN to IRIS_MAX) at start
-    int16_t  endValue,   // Iris scale value at end
+void split( // Subdivides motion path into two sub-paths w/randomization
+    int16_t startValue, // Iris scale value (IRIS_MIN to IRIS_MAX) at start
+    int16_t endValue,   // Iris scale value at end
     uint32_t startTime,  // micros() at start
-    int32_t  duration,   // Start-to-end time, in microseconds
-    int16_t  range) {    // Allowable scale value variance when subdividing
+    int32_t duration,   // Start-to-end time, in microseconds
+    int16_t range) {    // Allowable scale value variance when subdividing
 
   if (range >= 8) {    // Limit subdvision count, because recursion
-    range    /= 2;     // Split range & time in half for subdivision,
+    range /= 2;     // Split range & time in half for subdivision,
     duration /= 2;     // then pick random center point within range:
-    int16_t  midValue = (startValue + endValue - range) / 2 + random(range);
-    uint32_t midTime  = startTime + duration;
+    int16_t midValue = (startValue + endValue - range) / 2 + random(range);
+    uint32_t midTime = startTime + duration;
     split(startValue, midValue, startTime, duration, range); // First half
-    split(midValue  , endValue, midTime  , duration, range); // Second half
+    split(midValue, endValue, midTime, duration, range); // Second half
   } else {             // No more subdivisons, do iris motion...
     int32_t dt;        // Time (micros) since start of motion
     int16_t v;         // Interim value
     while ((dt = (micros() - startTime)) < duration) {
       v = startValue + (((endValue - startValue) * dt) / duration);
-      if (v < currentEye.irisMin) {
-        v = currentEye.irisMin; // Clip just in case
-      } else if (v > currentEye.irisMax) {
-        v = currentEye.irisMax;
+      if (v < currentEye->irisMin) {
+        v = currentEye->irisMin; // Clip just in case
+      } else if (v > currentEye->irisMax) {
+        v = currentEye->irisMax;
       }
+
+      static elapsedMillis eyeTime{};
+      if (eyeTime > 1000) {
+        nextEye();
+        eyeTime = 0;
+      }
+
       frame(v);        // Draw frame w/interim iris scale value
     }
   }
@@ -670,8 +717,8 @@ void loop() {
 
 #else  // Autonomous iris scaling -- invoke recursive function
 
-  newIris = random(currentEye.irisMin, currentEye.irisMax);
-  split(oldIris, newIris, micros(), 10000000L, currentEye.irisMax - currentEye.irisMin);
+  newIris = random(currentEye->irisMin, currentEye->irisMax);
+  split(oldIris, newIris, micros(), 10000000L, currentEye->irisMax - currentEye->irisMin);
   oldIris = newIris;
 
 #endif // LIGHT_PIN
@@ -712,6 +759,7 @@ void DumpMemoryInfo() {
   }
 #endif
 }
+
 void EstimateStackUsage() {
 #if defined(__IMXRT1062__) && defined(DEBUG_MEMORY)
   uint32_t *pmem = (&_ebss + 32);

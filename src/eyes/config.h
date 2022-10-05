@@ -15,16 +15,16 @@
 
 #include "graphics/eyes.h"
 
-// Enable ONE of these #includes -- HUGE graphics tables for various eyes:
+// Enable the eye(s) you want to #include -- HUGE graphics tables for various eyes:
 #if(DISPLAY_SIZE == 240)
-#include "eyes/graphics/240x240/defaultEye.h"    // Standard human-ish hazel eye -OR-
+#include "eyes/graphics/240x240/defaultEye.h"    // Standard human-ish hazel eye
 //#include "eyes/graphics/240x240/doeEye.h"        // Cartoon deer eye (DISABLE TRACKING)
-//#include "eyes/graphics/240x240/newtEye.h"       // Eye of newt -OR-
+#include "eyes/graphics/240x240/newtEye.h"       // Eye of newt
 //#include "eyes/graphics/240x240/terminatorEye.h" // Git to da choppah!
 
 //#include "eyes/graphics/240x240/catEye.h"        // Cartoonish cat (flat "2D" colors)
-//#include "eyes/graphics/240x240/dragonEye.h"     // Slit pupil fiery dragon/demon eye -OR-
-//#include "eyes/graphics/240x240/goatEye.h"       // Horizontal pupil goat/Krampus eye -OR-
+//#include "eyes/graphics/240x240/dragonEye.h"     // Slit pupil fiery dragon/demon eye
+//#include "eyes/graphics/240x240/goatEye.h"       // Horizontal pupil goat/Krampus eye
 //#include "eyes/graphics/240x240/naugaEye.h"      // Nauga googly eye (DISABLE TRACKING)
 //#include "eyes/graphics/240x240/owlEye.h"        // Minerva the owl (DISABLE TRACKING)
 #else
