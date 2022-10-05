@@ -11,7 +11,7 @@ class HexTable:
     variable type, sign, or platform-specific modifiers like Arduino's PROGMEM.
     """
 
-    def __init__(self, count, columns=12, digits=2):
+    def __init__(self, count, columns=12, digits=2, indent=0):
         """
         Constructor - initializes counters, etc. for the write() function.
         @param count   Expected number of elements in the array to be
@@ -22,12 +22,15 @@ class HexTable:
                        2-digit hex values...under 80 characters/line).
         @param digits  Number of hex digits per value (e.g. 2 for uint8_t,
                        4 for uint16_t, etc.). Default is 2.
+        @param indent  The number of spaces to indent the output by. Default
+                       is 0.
         """
         self.limit = count     # Total number of elements in array
         self.counter = 0       # Current array element number (0 to limit-1)
         self.digits = digits   # Digits per array element (after 0x)
         self.columns = columns # Max number of elements before line wrap
         self.column = columns  # Current column number, 0 to columns-1
+        self.indent = indent   # Number of spaces to indent the output by
         # column is initialized to columns to force first-line indent
 
     def write(self, value):
@@ -44,13 +47,17 @@ class HexTable:
                 sys.stdout.write(' ')            # append space after comma
         self.column += 1                         # Increment column number
         if self.column >= self.columns:          # Max column exceeded?
-            sys.stdout.write('\n  ')             # Line wrap, indent
+            if self.counter > 0:                 # Line wrap, indent
+                sys.stdout.write('\n')
+            sys.stdout.write(' ' * (self.indent + 2))
             self.column = 0                      # Reset column number
         sys.stdout.write(                        # 0xNN format
             '{0:#0{1}X}'.format(value, self.digits + 2).replace('X', 'x'))
         self.counter += 1                        # Increment item counter
         if self.counter >= self.limit:
-            print(' };')                         # Cap off table
+            sys.stdout.write('\n')               # Cap off table
+            sys.stdout.write(' ' * self.indent)
+            sys.stdout.write('};\n\n')
 
     def reset(self, count=0):
         """

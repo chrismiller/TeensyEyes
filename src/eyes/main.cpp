@@ -51,6 +51,7 @@ typedef GC9A01A_t3n displayType; // Using TFT display(s)
 #define DISPLAY_SIZE 240
 
 #include "config.h"     // ****** CONFIGURATION IS DONE IN HERE ******
+#include "eyes/graphics/eyes.h"
 
 #define RGBColor(r, g, b) GC9A01A_t3n::Color565(r, g, b)
 
@@ -77,10 +78,12 @@ typedef struct {
 struct {                // One-per-eye structure
   displayType *display; // -> OLED/TFT object
   eyeBlink     blink;   // Current blink/wink state
-} eye[NUM_EYES];
+} eyes[NUM_EYES];
 
 
 uint32_t startTime;  // For FPS indicator
+
+EyeParams currentEye = defaultEye::params;
 
 void DumpMemoryInfo();
 void EstimateStackUsage();
@@ -111,12 +114,12 @@ void setup(void) {
     //                       DISPLAY_DC, -1);
     //for SPI
     //(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
-    eye[e].display = new displayType(eyeInfo[e].cs, eyeInfo[e].dc, eyeInfo[e].rst,
-                                     eyeInfo[e].mosi, eyeInfo[e].sck);
-    eye[e].blink.state = NOBLINK;
-    for (int i = 0; i < SCREEN_HEIGHT; i++) {
-      eye[e].blink.lastLid[i].upperLid = 0;
-      eye[e].blink.lastLid[i].lowerLid = 255;
+    eyes[e].display = new displayType(eyeInfo[e].cs, eyeInfo[e].dc, eyeInfo[e].rst,
+                                      eyeInfo[e].mosi, eyeInfo[e].sck);
+    eyes[e].blink.state = NOBLINK;
+    for (int i = 0; i < screenWidth; i++) {
+      eyes[e].blink.lastLid[i].upperLid = 0;
+      eyes[e].blink.lastLid[i].lowerLid = 255;
     }
 
     // If project involves only ONE eye and NO other SPI devices, its
@@ -149,10 +152,10 @@ void setup(void) {
 
   // After all-displays reset, now call init/begin func for each display:
   for (e = 0; e < NUM_EYES; e++) {
-    eye[e].display->begin();
+    eyes[e].display->begin();
     Serial.print("Init ST77xx display #"); Serial.println(e);
     Serial.println("Rotate");
-    eye[e].display->setRotation(eyeInfo[e].rotation);
+    eyes[e].display->setRotation(eyeInfo[e].rotation);
   }
   Serial.println("done");
 
@@ -208,7 +211,7 @@ void setup(void) {
   // The values for setRotation would be: 0XC8(-MX), 0xA8(+MY), 0x8(-MX), 0x68(+MY)
   // 0xC0, A0, 0, 60
   const uint8_t mirrorTFT[]  = { 0x8, 0x20, 0x40, 0xE0 }; // Mirror+rotate
-  eye[0].display->sendCommand(
+  eyes[0].display->sendCommand(
       GC9A01A_MADCTL, // Current TFT lib
       &mirrorTFT[eyeInfo[0].rotation & 3], 1);
 
@@ -217,7 +220,7 @@ void setup(void) {
   analogWrite(DISPLAY_BACKLIGHT, BACKLIGHT_MAX);
 #endif
   for (e = 0; e < NUM_EYES; e++) {
-    if (!eye[e].display->useFrameBuffer(1)) {
+    if (!eyes[e].display->useFrameBuffer(1)) {
       Serial.printf("%d: Use Frame Buffer failed\n", e);
     } else {
       Serial.printf("$%d: Using Frame buffer\n", e);
@@ -229,26 +232,26 @@ void setup(void) {
 
 
 inline uint8_t upperThreshold(uint8_t x, uint8_t y) {
-  const uint8_t start = upper[x][0];
-  const uint8_t end = upper[x][1];
+  const uint8_t start = currentEye.upperLid[x * 2];
+  const uint8_t end = currentEye.upperLid[x * 2 + 1];
   return y <= start ? 0 : y >= end ? 255 : (y - start) * 256 / (end - start);
 }
 
 inline uint8_t lowerThreshold(uint8_t x, uint8_t y) {
-  const uint8_t start = lower[x][0];
-  const uint8_t end = lower[x][1];
+  const uint8_t start = currentEye.lowerLid[x * 2];
+  const uint8_t end = currentEye.lowerLid[x * 2 + 1];
   return y <= start ? 255 : y >= end ? 0 : (end - y) * 256 / (end - start);
 }
 
 inline uint8_t upperLid(uint8_t x, uint8_t threshold) {
-  const uint8_t start = upper[x][0];
-  const uint8_t end = upper[x][1];
+  const uint8_t start = currentEye.upperLid[x * 2];
+  const uint8_t end = currentEye.upperLid[x * 2 + 1];
   return start + threshold * (end - start) / 256;
 }
 
 inline uint8_t lowerLid(uint8_t x, uint8_t threshold) {
-  const uint8_t start = lower[x][0];
-  const uint8_t end = lower[x][1];
+  const uint8_t start = currentEye.lowerLid[x * 2];
+  const uint8_t end = currentEye.lowerLid[x * 2 + 1];
   return end - threshold * (end - start) / 255;
 }
 
@@ -275,10 +278,10 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
   uint16_t min_a = 0xff;
 
   const uint32_t irisThreshold = (DISPLAY_SIZE * (1023 - iScale) + 512) / 1024;
-  const uint32_t irisScale     = IRIS_MAP_HEIGHT * 65536 / irisThreshold;
+  const uint32_t irisScale     = currentEye.iris.height * 65536 / irisThreshold;
 
-  displayType &display = *eye[e].display;
-  eyeBlink &blink = eye[e].blink;
+  displayType &display = *eyes[e].display;
+  eyeBlink &blink = eyes[e].blink;
 
   // Set up raw pixel dump to entire screen.  Although such writes can wrap
   // around automatically from end of rect back to beginning, the region is
@@ -286,11 +289,11 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
   // Now just issue raw 16-bit values for every pixel...
 
     scleraXsave = scleraX; // Save initial X value to reset on each line
-    irisY       = scleraY - (SCLERA_HEIGHT - IRIS_HEIGHT) / 2;
-    for (screenY = 0; screenY < SCREEN_HEIGHT; screenY++, scleraY++, irisY++) {
+    irisY       = scleraY - (currentEye.sclera.height - currentEye.polar.height) / 2;
+    for (screenY = 0; screenY < screenHeight; screenY++, scleraY++, irisY++) {
     scleraX = scleraXsave;
-    irisX   = scleraXsave - (SCLERA_WIDTH - IRIS_WIDTH) / 2;
-    for (screenX = 0; screenX < SCREEN_WIDTH; screenX++, scleraX++, irisX++) {
+    irisX   = scleraXsave - (currentEye.sclera.width - currentEye.polar.width) / 2;
+    for (screenX = 0; screenX < screenWidth; screenX++, scleraX++, irisX++) {
       // If this pixel is covered by an eyelid, check if we even need to draw it,
       // or it was already drawn in the previous frame
       bool const inTopLid = upperThreshold(screenX, screenY) <= uT;
@@ -307,22 +310,23 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
         p = 0;
       } else {
         // We're in the eye rather than the eyelid
-        if ((irisY < 0) || (irisY >= IRIS_HEIGHT) ||
-            (irisX < 0) || (irisX >= IRIS_WIDTH)) { // In sclera
-          p = sclera[scleraY][scleraX];
+        if ((irisY < 0) || (irisY >= currentEye.polar.height) ||
+            (irisX < 0) || (irisX >= currentEye.polar.width)) { // In sclera
+          p = currentEye.sclera.get(scleraX, scleraY);
         } else {                                          // Maybe iris...
-          p = polar[irisY][irisX];                        // Polar angle/dist
+          p = currentEye.polar.get(irisX, irisY);  // Polar angle/dist
           d = p & 0x7F;                                   // Distance from edge (0-127)
           if (d < irisThreshold) {                        // Within scaled iris area
             d = d * irisScale / 65536;                    // d scaled to iris image height
-            a = (IRIS_MAP_WIDTH * (p >> 7)) / 512;        // Angle (X)
-            p = iris[d][a];                               // Pixel = iris
+            a = (currentEye.iris.width * (p >> 7)) / 512; // Angle (X)
+            p = currentEye.iris.get(a, d);         // Pixel = iris
             if (d > max_d) max_d = d;
             if (a > max_a) max_a = a;
             if (d < min_d) min_d = d;
             if (a < min_a) min_a = a;
-          } else {                                        // Not in iris
-            p = sclera[scleraY][scleraX];                 // Pixel = sclera
+          } else {
+            // Not in iris
+            p = currentEye.sclera.get(scleraX, scleraY);
           }
         }
       }
@@ -332,7 +336,7 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
   } // end scanline
 
   // Store the eyelid upper/lower locations for the next iteration
-  for (int x = 0; x < SCREEN_WIDTH; x++) {
+  for (int x = 0; x < screenWidth; x++) {
     blink.lastLid[x].upperLid = upperLid(x, uT);
     blink.lastLid[x].lowerLid = lowerLid(x, lT);
   }
@@ -355,7 +359,7 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
 #endif
 
 #if defined(USE_ASYNC_UPDATES)
-  if (!eye[e].display->updateScreenAsync()) {
+  if (!eyes[e].display->updateScreenAsync()) {
     Serial.printf("%d : updateScreenAsync FAILED\n", e);
   } else {
     //Serial.printf("%d : updateScreenAsync started\n", e);
@@ -399,7 +403,7 @@ void frame( // Process motion for a single frame of left or right eye
   if (++eyeIndex >= NUM_EYES) eyeIndex = 0; // Cycle through eyes, 1 per call
 #if defined(USE_ASYNC_UPDATES)
   elapsedMillis emWait = 0;
-  while (eye[eyeIndex].display->asyncUpdateActive() && (emWait < 1000)) ;
+  while (eyes[eyeIndex].display->asyncUpdateActive() && (emWait < 1000)) ;
   if (emWait >= 1000) Serial.println("Long wait");
 #endif
 
@@ -490,21 +494,21 @@ void frame( // Process motion for a single frame of left or right eye
     uint32_t blinkDuration = random(36000, 72000); // ~1/28 - ~1/14 sec
     // Set up durations for both eyes (if not already winking)
     for (uint8_t e = 0; e < NUM_EYES; e++) {
-      if (eye[e].blink.state == NOBLINK) {
-        eye[e].blink.state     = ENBLINK;
-        eye[e].blink.startTime = t;
-        eye[e].blink.duration  = blinkDuration;
+      if (eyes[e].blink.state == NOBLINK) {
+        eyes[e].blink.state     = ENBLINK;
+        eyes[e].blink.startTime = t;
+        eyes[e].blink.duration  = blinkDuration;
       }
     }
     timeToNextBlink = blinkDuration * 3 + random(4000000);
   }
 #endif
 
-  if (eye[eyeIndex].blink.state) { // Eye currently blinking?
+  if (eyes[eyeIndex].blink.state) { // Eye currently blinking?
     // Check if current blink state time has elapsed
-    if ((t - eye[eyeIndex].blink.startTime) >= eye[eyeIndex].blink.duration) {
+    if ((t - eyes[eyeIndex].blink.startTime) >= eyes[eyeIndex].blink.duration) {
       // Yes -- increment blink state, unless...
-      if ((eye[eyeIndex].blink.state == ENBLINK) && ( // Enblinking and...
+      if ((eyes[eyeIndex].blink.state == ENBLINK) && ( // Enblinking and...
 #if defined(BLINK_PIN) && (BLINK_PIN >= 0)
           (digitalRead(BLINK_PIN) == LOW) ||           // blink or wink held...
 #endif
@@ -512,11 +516,11 @@ void frame( // Process motion for a single frame of left or right eye
            digitalRead(eyeInfo[eyeIndex].wink) == LOW) )) {
         // Don't advance state yet -- eye is held closed instead
       } else { // No buttons, or other state...
-        if (++eye[eyeIndex].blink.state > DEBLINK) { // Deblinking finished?
-          eye[eyeIndex].blink.state = NOBLINK;      // No longer blinking
+        if (++eyes[eyeIndex].blink.state > DEBLINK) { // Deblinking finished?
+          eyes[eyeIndex].blink.state = NOBLINK;      // No longer blinking
         } else { // Advancing from ENBLINK to DEBLINK mode
-          eye[eyeIndex].blink.duration *= 2; // DEBLINK is 1/2 ENBLINK speed
-          eye[eyeIndex].blink.startTime = t;
+          eyes[eyeIndex].blink.duration *= 2; // DEBLINK is 1/2 ENBLINK speed
+          eyes[eyeIndex].blink.startTime = t;
         }
       }
     }
@@ -536,25 +540,25 @@ void frame( // Process motion for a single frame of left or right eye
 #endif
     if ((eyeInfo[eyeIndex].wink >= 0) &&
         (digitalRead(eyeInfo[eyeIndex].wink) == LOW)) { // Wink!
-      eye[eyeIndex].blink.state     = ENBLINK;
-      eye[eyeIndex].blink.startTime = t;
-      eye[eyeIndex].blink.duration  = random(45000, 90000);
+      eyes[eyeIndex].blink.state     = ENBLINK;
+      eyes[eyeIndex].blink.startTime = t;
+      eyes[eyeIndex].blink.duration  = random(45000, 90000);
     }
   }
 
   // Process motion, blinking and iris scale into renderable values
 
   // Scale eye X/Y positions (0-1023) to pixel units used by drawEye()
-  eyeX = map(eyeX, 0, 1023, 0, SCLERA_WIDTH  - DISPLAY_SIZE);
-  eyeY = map(eyeY, 0, 1023, 0, SCLERA_HEIGHT - DISPLAY_SIZE);
-  if (eyeIndex == 1) eyeX = (SCLERA_WIDTH - DISPLAY_SIZE) - eyeX; // Mirrored display
+  eyeX = map(eyeX, 0, 1023, 0, currentEye.sclera.width - DISPLAY_SIZE);
+  eyeY = map(eyeY, 0, 1023, 0, currentEye.sclera.width - DISPLAY_SIZE);
+  if (eyeIndex == 1) eyeX = (currentEye.sclera.width - DISPLAY_SIZE) - eyeX; // Mirrored display
 
   // Horizontal position is offset so that eyes are very slightly crossed
   // to appear fixated (converged) at a conversational distance.  Number
   // here was extracted from my posterior and not mathematically based.
   // I suppose one could get all clever with a range sensor, but for now...
   if (NUM_EYES > 1) eyeX += 4;
-  if (eyeX > (SCLERA_WIDTH - DISPLAY_SIZE)) eyeX = (SCLERA_WIDTH - DISPLAY_SIZE);
+  if (eyeX > (currentEye.sclera.width - DISPLAY_SIZE)) eyeX = (currentEye.sclera.height - DISPLAY_SIZE);
 
   // Eyelids are rendered using a brightness threshold image.  This same
   // map can be used to simplify another problem: making the upper eyelid
@@ -564,13 +568,13 @@ void frame( // Process motion for a single frame of left or right eye
   static uint16_t uThreshold = DISPLAY_SIZE;
   uint16_t        lThreshold, n;
 #ifdef TRACKING
-  int16_t sampleX = SCLERA_WIDTH  / 2 - (eyeX / 2);    // Reduce X influence
-  int16_t sampleY = SCLERA_HEIGHT / 2 - (eyeY + IRIS_HEIGHT / 4);
+  int16_t sampleX = currentEye.sclera.width  / 2 - (eyeX / 2);    // Reduce X influence
+  int16_t sampleY = currentEye.sclera.height / 2 - (eyeY + currentEye.iris.height / 4);
   // Eyelid is slightly asymmetrical, so two readings are taken, averaged
   if (sampleY < 0) {
     n = 0;
   } else {
-    n = (upperThreshold(sampleX, sampleY) + upperThreshold(SCREEN_WIDTH - 1 - sampleX, sampleY)) / 2;
+    n = (upperThreshold(sampleX, sampleY) + upperThreshold(screenWidth - 1 - sampleX, sampleY)) / 2;
   }
   uThreshold = (uThreshold * 3 + n) / 4; // Filter/soften motion
   // Lower eyelid doesn't track the same way, but seems to be pulled upward
@@ -582,11 +586,11 @@ void frame( // Process motion for a single frame of left or right eye
 
   // The upper/lower thresholds are then scaled relative to the current
   // blink position so that blinks work together with pupil tracking.
-  if (eye[eyeIndex].blink.state) { // Eye currently blinking?
-    uint32_t s = (t - eye[eyeIndex].blink.startTime);
-    if (s >= eye[eyeIndex].blink.duration) s = 255;  // At or past blink end
-    else s = 255 * s / eye[eyeIndex].blink.duration; // Mid-blink
-    s          = (eye[eyeIndex].blink.state == DEBLINK) ? 1 + s : 256 - s;
+  if (eyes[eyeIndex].blink.state) { // Eye currently blinking?
+    uint32_t s = (t - eyes[eyeIndex].blink.startTime);
+    if (s >= eyes[eyeIndex].blink.duration) s = 255;  // At or past blink end
+    else s = 255 * s / eyes[eyeIndex].blink.duration; // Mid-blink
+    s          = (eyes[eyeIndex].blink.state == DEBLINK) ? 1 + s : 256 - s;
     n          = (uThreshold * s + 254 * (257 - s)) / 256;
     lThreshold = (lThreshold * s + 254 * (257 - s)) / 256;
   } else {
@@ -604,7 +608,7 @@ void frame( // Process motion for a single frame of left or right eye
 // Autonomous iris motion uses a fractal behavior to similate both the major
 // reaction of the eye plus the continuous smaller adjustments that occur.
 
-uint16_t oldIris = (IRIS_MIN + IRIS_MAX) / 2, newIris;
+uint16_t oldIris = (currentEye.irisMin + currentEye.irisMin) / 2, newIris;
 
 void split( // Subdivides motion path into two sub-paths w/randimization
     int16_t  startValue, // Iris scale value (IRIS_MIN to IRIS_MAX) at start
@@ -625,8 +629,11 @@ void split( // Subdivides motion path into two sub-paths w/randimization
     int16_t v;         // Interim value
     while ((dt = (micros() - startTime)) < duration) {
       v = startValue + (((endValue - startValue) * dt) / duration);
-      if (v < IRIS_MIN)      v = IRIS_MIN; // Clip just in case
-      else if (v > IRIS_MAX) v = IRIS_MAX;
+      if (v < currentEye.irisMin) {
+        v = currentEye.irisMin; // Clip just in case
+      } else if (v > currentEye.irisMax) {
+        v = currentEye.irisMax;
+      }
       frame(v);        // Draw frame w/interim iris scale value
     }
   }
@@ -663,8 +670,8 @@ void loop() {
 
 #else  // Autonomous iris scaling -- invoke recursive function
 
-  newIris = random(IRIS_MIN, IRIS_MAX);
-  split(oldIris, newIris, micros(), 10000000L, IRIS_MAX - IRIS_MIN);
+  newIris = random(currentEye.irisMin, currentEye.irisMax);
+  split(oldIris, newIris, micros(), 10000000L, currentEye.irisMax - currentEye.irisMin);
   oldIris = newIris;
 
 #endif // LIGHT_PIN

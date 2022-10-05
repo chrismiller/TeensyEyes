@@ -13,8 +13,10 @@
 // Otherwise your choice, standard is asymmetrical
 //#define SYMMETRICAL_EYELID
 
+#include "graphics/eyes.h"
+
 // Enable ONE of these #includes -- HUGE graphics tables for various eyes:
-#if( DISPLAY_SIZE == 240 )
+#if(DISPLAY_SIZE == 240)
 #include "eyes/graphics/240x240/defaultEye.h"    // Standard human-ish hazel eye -OR-
 //#include "eyes/graphics/240x240/doeEye.h"        // Cartoon deer eye (DISABLE TRACKING)
 //#include "eyes/graphics/240x240/newtEye.h"       // Eye of newt -OR-
@@ -103,9 +105,3 @@ eyeInfo_t eyeInfo[] = {
   #define LIGHT_MAX    1023 // Upper reading from sensor
 
 #define IRIS_SMOOTH         // If enabled, filter input from IRIS_PIN
-#if !defined(IRIS_MIN)      // Each eye might have its own MIN/MAX
-  #define IRIS_MIN      120 // Iris size (0-1023) in brightest light
-#endif
-#if !defined(IRIS_MAX)
-  #define IRIS_MAX      900 // Iris size (0-1023) in darkest light
-#endif
