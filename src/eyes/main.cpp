@@ -88,7 +88,7 @@ std::array<EyeParams, 2> eyeList{defaultEye::params, newtEye::params};
 
 EyeParams *currentEye = &eyeList[0];
 
-int eyeIndex{};
+int eyeIndex{eyeList.size() - 1};
 
 void nextEye() {
   eyeIndex = (eyeIndex + 1) % eyeList.size();
@@ -648,10 +648,10 @@ void frame( // Process motion for a single frame of left or right eye
 // Autonomous iris motion uses a fractal behavior to simulate both the major
 // reaction of the eye plus the continuous smaller adjustments that occur.
 
-uint16_t oldIris = (currentEye->irisMin + currentEye->irisMin) / 2, newIris;
+uint16_t oldIris = (currentEye->irisMin + currentEye->irisMax) / 2, newIris;
 
 void split( // Subdivides motion path into two sub-paths w/randomization
-    int16_t startValue, // Iris scale value (IRIS_MIN to IRIS_MAX) at start
+    int16_t startValue, // Iris scale value (from irisMin to irisMax) at start
     int16_t endValue,   // Iris scale value at end
     uint32_t startTime,  // micros() at start
     int32_t duration,   // Start-to-end time, in microseconds
@@ -705,10 +705,10 @@ void loop() {
   v = (int16_t)(pow((double)v / (double)(LIGHT_MAX - LIGHT_MIN),
                     LIGHT_CURVE) * (double)(LIGHT_MAX - LIGHT_MIN));
 #endif
-  // And scale to iris range (IRIS_MAX is size at LIGHT_MIN)
-  v = map(v, 0, (LIGHT_MAX - LIGHT_MIN), IRIS_MAX, IRIS_MIN);
+  // And scale to iris range (irisMax at LIGHT_MIN)
+  v = map(v, 0, (LIGHT_MAX - LIGHT_MIN), irisMax, irisMin);
 #ifdef IRIS_SMOOTH // Filter input (gradual motion)
-  static int16_t irisValue = (IRIS_MIN + IRIS_MAX) / 2;
+  static int16_t irisValue = (irisMin + irisMax) / 2;
   irisValue = ((irisValue * 15) + v) / 16;
   frame(irisValue);
 #else // Unfiltered (immediate motion)
