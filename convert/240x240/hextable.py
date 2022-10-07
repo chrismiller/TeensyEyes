@@ -11,7 +11,7 @@ class HexTable:
     variable type, sign, or platform-specific modifiers like Arduino's PROGMEM.
     """
 
-    def __init__(self, count, columns=12, digits=2, indent=0):
+    def __init__(self, count, columns=16, digits=2, indent=0):
         """
         Constructor - initializes counters, etc. for the write() function.
         @param count   Expected number of elements in the array to be
