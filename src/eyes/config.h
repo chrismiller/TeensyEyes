@@ -19,7 +19,7 @@
 #if(DISPLAY_SIZE == 240)
 #include "eyes/graphics/240x240/defaultEye.h"    // Standard human-ish hazel eye
 //#include "eyes/graphics/240x240/doeEye.h"        // Cartoon deer eye (DISABLE TRACKING)
-#include "eyes/graphics/240x240/newtEye.h"       // Eye of newt
+//#include "eyes/graphics/240x240/newtEye.h"       // Eye of newt
 //#include "eyes/graphics/240x240/terminatorEye.h" // Git to da choppah!
 
 //#include "eyes/graphics/240x240/catEye.h"        // Cartoonish cat (flat "2D" colors)

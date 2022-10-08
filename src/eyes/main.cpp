@@ -84,7 +84,8 @@ struct {                // One-per-eye structure
 
 uint32_t startTime;  // For FPS indicator
 
-std::array<EyeParams, 2> eyeList{defaultEye::params, newtEye::params};
+//std::array<EyeParams, 2> eyeList{defaultEye::params, newtEye::params};
+std::array<EyeParams, 1> eyeList{defaultEye::params};
 
 EyeParams *currentEye = &eyeList[0];
 
@@ -684,11 +685,11 @@ void split( // Subdivides motion path into two sub-paths w/randomization
         v = currentEye->irisMax;
       }
 
-      static elapsedMillis eyeTime{};
-      if (eyeTime > 1000) {
-        nextEye();
-        eyeTime = 0;
-      }
+//      static elapsedMillis eyeTime{};
+//      if (eyeTime > 1000) {
+//        nextEye();
+//        eyeTime = 0;
+//      }
 
       frame(v);        // Draw frame w/interim iris scale value
     }
