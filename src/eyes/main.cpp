@@ -310,11 +310,12 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
   // reset on each frame here in case of an SPI glitch.
   // Now just issue raw 16-bit values for every pixel...
 
-  scleraXsave = scleraX; // Save initial X value to reset on each line
-  irisY = scleraY - (currentEye->sclera.height - currentEye->polar.height) / 2;
+  // Save initial X value to reset on each line
+  scleraXsave = scleraX;
+  irisY = scleraY - (currentEye->polarSclera.height - currentEye->polar.height) / 2;
   for (screenY = 0; screenY < screenHeight; screenY++, scleraY++, irisY++) {
     scleraX = scleraXsave;
-    irisX = scleraXsave - (currentEye->sclera.width - currentEye->polar.width) / 2;
+    irisX = scleraXsave - (currentEye->polarSclera.width - currentEye->polar.width) / 2;
     for (screenX = 0; screenX < screenWidth; screenX++, scleraX++, irisX++) {
       // If this pixel is covered by an eyelid, check if we even need to draw it,
       // or it was already drawn in the previous frame
@@ -333,22 +334,30 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
       } else {
         // We're in the eye rather than the eyelid
         if ((irisY < 0) || (irisY >= currentEye->polar.height) ||
-            (irisX < 0) || (irisX >= currentEye->polar.width)) { // In sclera
-          p = currentEye->sclera.get(scleraX, scleraY);
-        } else {                                          // Maybe iris...
-          p = currentEye->polar.get(irisX, irisY);  // Polar angle/dist
-          d = p & 0x7F;                                   // Distance from edge (0-127)
-          if (d < irisThreshold) {                        // Within scaled iris area
-            d = d * irisScale / 65536;                    // d scaled to iris image height
-            a = (currentEye->iris.width * (p >> 7)) / 512; // Angle (X)
-            p = currentEye->iris.get(a, d);         // Pixel = iris
+            (irisX < 0) || (irisX >= currentEye->polar.width)) {
+          // In sclera
+          p = currentEye->polarSclera.get(scleraX, scleraY);
+        } else {
+          // Maybe iris, we'll have to check
+          // Polar angle/dist
+          p = currentEye->polar.get(irisX, irisY);
+          // Distance from edge (0-127)
+          d = p & 0x7F;
+          if (d < irisThreshold) {
+            // Yes we're within the scaled iris area
+            // Scale d to the iris image height
+            d = d * irisScale / 65536;
+            // Angle (X)
+            a = (currentEye->iris.width * (p >> 7)) / 512;
+            // Pixel = iris
+            p = currentEye->iris.get(a, d);
             if (d > max_d) max_d = d;
             if (a > max_a) max_a = a;
             if (d < min_d) min_d = d;
             if (a < min_a) min_a = a;
           } else {
-            // Not in iris
-            p = currentEye->sclera.get(scleraX, scleraY);
+            // Not in iris, so draw the sclera
+            p = currentEye->polarSclera.get(scleraX, scleraY);
           }
         }
       }
@@ -589,16 +598,16 @@ void frame( // Process motion for a single frame of left or right eye
   // Process motion, blinking and iris scale into renderable values
 
   // Scale eye X/Y positions (0-1023) to pixel units used by drawEye()
-  eyeX = map(eyeX, 0, 1023, 0, currentEye->sclera.width - DISPLAY_SIZE);
-  eyeY = map(eyeY, 0, 1023, 0, currentEye->sclera.width - DISPLAY_SIZE);
-  if (eyeIndex == 1) eyeX = (currentEye->sclera.width - DISPLAY_SIZE) - eyeX; // Mirrored display
+  eyeX = map(eyeX, 0, 1023, 0, currentEye->polarSclera.width - DISPLAY_SIZE);
+  eyeY = map(eyeY, 0, 1023, 0, currentEye->polarSclera.width - DISPLAY_SIZE);
+  if (eyeIndex == 1) eyeX = (currentEye->polarSclera.width - DISPLAY_SIZE) - eyeX; // Mirrored display
 
   // Horizontal position is offset so that eyes are very slightly crossed
   // to appear fixated (converged) at a conversational distance.  Number
   // here was extracted from my posterior and not mathematically based.
   // I suppose one could get all clever with a range sensor, but for now...
   if (NUM_EYES > 1) eyeX += 4;
-  if (eyeX > (currentEye->sclera.width - DISPLAY_SIZE)) eyeX = (currentEye->sclera.height - DISPLAY_SIZE);
+  if (eyeX > (currentEye->polarSclera.width - DISPLAY_SIZE)) eyeX = (currentEye->polarSclera.height - DISPLAY_SIZE);
 
   // Eyelids are rendered using a brightness threshold image.  This same
   // map can be used to simplify another problem: making the upper eyelid
@@ -608,8 +617,8 @@ void frame( // Process motion for a single frame of left or right eye
   static uint16_t uThreshold = DISPLAY_SIZE;
   uint16_t lThreshold, n;
 #ifdef TRACKING
-  int16_t sampleX = currentEye->sclera.width / 2 - (eyeX / 2);    // Reduce X influence
-  int16_t sampleY = currentEye->sclera.height / 2 - (eyeY + currentEye->iris.height / 4);
+  int16_t sampleX = currentEye->polarSclera.width / 2 - (eyeX / 2);    // Reduce X influence
+  int16_t sampleY = currentEye->polarSclera.height / 2 - (eyeY + currentEye->iris.height / 4);
   // Eyelid is slightly asymmetrical, so two readings are taken, averaged
   if (sampleY < 0) {
     n = 0;

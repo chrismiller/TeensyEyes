@@ -30,15 +30,22 @@ public:
   const uint16_t eyeRadius{120};  // Pixels
   const uint16_t mapRadius{240};  // Pixels
   const Image iris;
+  [[deprecated("Replaced with non-polar sclera implementation")]]      // TODO: deprecated
+  const Image polarSclera;
   const Image sclera;
+  [[deprecated("Replaced with polarAngle and polarDist maps")]]        // TODO: deprecated
   const Image polar;
+  const uint8_t *polarAngle;
+  const int8_t *polarDist;
+  const uint8_t *disp;
   const uint8_t *upperLid;
   const uint8_t *lowerLid;
 
   EyeParams(const uint16_t pupilColor, const uint16_t backColor, const uint16_t irisSize, const uint16_t irisMin,
             const uint16_t irisMax, const uint16_t eyeRadius, const uint16_t mapRadius, const Image &iris,
-            const Image &sclera, const Image &polar, const uint8_t *upperLid, const uint8_t *lowerLid) :
+            const Image polarSclera, const Image &sclera, const Image &polar, const uint8_t *polarAngle,
+            const int8_t *polarDist, const uint8_t *disp, const uint8_t *upperLid, const uint8_t *lowerLid) :
       pupilColor(pupilColor), backColor(backColor), irisSize(irisSize), irisMin(irisMin), irisMax(irisMax),
-      eyeRadius(eyeRadius), mapRadius(mapRadius), iris(iris), sclera(sclera), polar(polar), upperLid(upperLid),
-      lowerLid(lowerLid) {}
+      eyeRadius(eyeRadius), mapRadius(mapRadius), iris(iris), polarSclera(polarSclera), sclera(sclera),
+      polar(polar), polarAngle(polarAngle), polarDist(polarDist), disp(disp), upperLid(upperLid), lowerLid(lowerLid) {}
 };
