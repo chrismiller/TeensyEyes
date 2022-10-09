@@ -291,9 +291,8 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
     uint8_t lT) {    // Lower eyelid threshold value
 
   int screenX, screenY;
-  uint16_t scleraXsave;
   int16_t irisX, irisY;
-  uint16_t p, a;
+  uint16_t a;
   uint32_t d;
   uint16_t max_d = 0;
   uint16_t max_a = 0;
@@ -311,55 +310,54 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
   // reset on each frame here in case of an SPI glitch.
   // Now just issue raw 16-bit values for every pixel...
 
-  // Save initial X value to reset on each line
-  scleraXsave = scleraX;
-  irisY = scleraY - (currentEye->polarSclera.height - currentEye->polar.height) / 2;
-  for (screenY = 0; screenY < screenHeight; screenY++, scleraY++, irisY++) {
-    scleraX = scleraXsave;
-    irisX = scleraXsave - (currentEye->polarSclera.width - currentEye->polar.width) / 2;
-    for (screenX = 0; screenX < screenWidth; screenX++, scleraX++, irisX++) {
-      // If this pixel is covered by an eyelid, check if we even need to draw it,
-      // or it was already drawn in the previous frame
-      bool const inTopLid = upperThreshold(screenX, screenY) <= uT;
-      bool const inBottomLid = lowerThreshold(screenX, screenY) <= lT;
-      if (inTopLid) {
-        if (blink.lastLid[screenX].upperLid >= screenY) {
-          continue;
-        }
+  // Save initial Y value to reset on each line
+  uint16_t scleraYsave = scleraY;
+  irisX = scleraX - (currentEye->polarSclera.width - currentEye->polar.width) / 2;
+  for (screenX = 0; screenX < screenWidth; screenX++, scleraX++, irisX++) {
+    scleraY = scleraYsave;
+    irisY = scleraYsave - (currentEye->polarSclera.height - currentEye->polar.height) / 2;
+
+    
+    // Determine the extents that need to be drawn (based on where the eyelids are located
+    // in both this and the previous frame).
+    auto const lastUpper = blink.lastLid[screenX].upperLid;
+    auto const currentUpper = upperLid(screenX, uT);
+    auto const minY = min(currentUpper, lastUpper);
+    auto const lastLower = blink.lastLid[screenX].lowerLid;
+    auto const currentLower = lowerLid(screenX, lT);
+    auto const maxY = max(currentLower, lastLower);
+    scleraY += minY;
+    irisY += minY;
+    for (screenY = minY; screenY < maxY; screenY++, scleraY++, irisY++) {
+      uint16_t p;
+      if (screenY < currentUpper || screenY >= currentLower) {
+        // We're in the eyelid
         p = 0;
-      } else if (inBottomLid) {
-        if (blink.lastLid[screenX].lowerLid <= screenY) {
-          continue;
-        }
-        p = 0;
+      } else if ((irisY < 0) || (irisY >= currentEye->polar.height) ||
+          (irisX < 0) || (irisX >= currentEye->polar.width)) {
+        // In sclera
+        p = currentEye->polarSclera.get(scleraX, scleraY);
       } else {
-        // We're in the eye rather than the eyelid
-        if ((irisY < 0) || (irisY >= currentEye->polar.height) ||
-            (irisX < 0) || (irisX >= currentEye->polar.width)) {
-          // In sclera
-          p = currentEye->polarSclera.get(scleraX, scleraY);
+        // Maybe iris, we'll have to check
+        // Polar angle/dist
+        p = currentEye->polar.get(irisX, irisY);
+        // Distance from edge (0-127)
+        d = p & 0x7F;
+        if (d < irisThreshold) {
+          // Yes we're within the scaled iris area
+          // Scale d to the iris image height
+          d = d * irisScale / 65536;
+          // Angle (X)
+          a = (currentEye->iris.width * (p >> 7)) / 512;
+          // Pixel = iris
+          p = currentEye->iris.get(a, d);
+          if (d > max_d) max_d = d;
+          if (a > max_a) max_a = a;
+          if (d < min_d) min_d = d;
+          if (a < min_a) min_a = a;
         } else {
-          // Maybe iris, we'll have to check
-          // Polar angle/dist
-          p = currentEye->polar.get(irisX, irisY);
-          // Distance from edge (0-127)
-          d = p & 0x7F;
-          if (d < irisThreshold) {
-            // Yes we're within the scaled iris area
-            // Scale d to the iris image height
-            d = d * irisScale / 65536;
-            // Angle (X)
-            a = (currentEye->iris.width * (p >> 7)) / 512;
-            // Pixel = iris
-            p = currentEye->iris.get(a, d);
-            if (d > max_d) max_d = d;
-            if (a > max_a) max_a = a;
-            if (d < min_d) min_d = d;
-            if (a < min_a) min_a = a;
-          } else {
-            // Not in iris, so draw the sclera
-            p = currentEye->polarSclera.get(scleraX, scleraY);
-          }
+          // Not in iris, so draw the sclera
+          p = currentEye->polarSclera.get(scleraX, scleraY);
         }
       }
 
