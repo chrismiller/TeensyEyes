@@ -49,7 +49,6 @@ typedef struct {        // Struct is defined before including config.h --
 } eyeInfo_t;
 
 typedef GC9A01A_t3n displayType; // Using TFT display(s)
-#define DISPLAY_SIZE 240
 
 #include "config.h"     // ****** CONFIGURATION IS DONE IN HERE ******
 #include "eyes/graphics/eyes.h"
@@ -71,7 +70,7 @@ typedef struct {
   uint32_t startTime;   // Time (micros) of last state change
   // Store the last top/bottom lid location, per column. This allows us to avoid redrawing eyelid pixels that
   // were already drawn in the previous frame, giving us a ~10% speedup
-  lidState lastLid[DISPLAY_SIZE];
+  lidState lastLid[screenWidth];
 } eyeBlink;
 
 #define NUM_EYES (sizeof eyeInfo / sizeof eyeInfo[0]) // config.h pin list
@@ -85,24 +84,24 @@ struct {                // One-per-eye structure
 uint32_t startTime;  // For FPS indicator
 
 //std::array<EyeParams, 2> eyeList{defaultEye::params, newtEye::params};
-std::array<EyeParams, 1> eyeList{defaultEye::params};
+std::array<EyeParams, 1> eyeParamList{defaultEye::params};
 
-EyeParams *currentEye = &eyeList[0];
+EyeParams *eyeParams = &eyeParamList[0];
 
-int eyeIndex{eyeList.size() - 1};
+int eyeIndex{eyeParamList.size() - 1};
 
 void nextEye() {
-  eyeIndex = (eyeIndex + 1) % eyeList.size();
-  currentEye = &eyeList[eyeIndex];
+  eyeIndex = (eyeIndex + 1) % eyeParamList.size();
+  eyeParams = &eyeParamList[eyeIndex];
 
   Serial.print("nextEye() ");
   Serial.println(eyeIndex);
 
   // Reset the eyelid boundaries so they get fully drawn on initial render
-  for (int i = 0; i < screenWidth; i++) {
+  for (int x = 0; x < screenWidth; x++) {
     for (auto e: eyes) {
-      e.blink.lastLid[i].upperLid = 0;
-      e.blink.lastLid[i].lowerLid = 255;
+      e.blink.lastLid[x].upperLid = 0;
+      e.blink.lastLid[x].lowerLid = 255;
     }
   }
 }
@@ -249,32 +248,32 @@ void setup(void) {
   }
 
   nextEye();
-  
+
   startTime = millis(); // For frame-rate calculation
 }
 
 
 inline uint8_t upperThreshold(uint8_t x, uint8_t y) {
-  const uint8_t start = currentEye->upperLid[x * 2];
-  const uint8_t end = currentEye->upperLid[x * 2 + 1];
+  const uint8_t start = eyeParams->upperLid[x * 2];
+  const uint8_t end = eyeParams->upperLid[x * 2 + 1];
   return y <= start ? 0 : y >= end ? 255 : (y - start) * 256 / (end - start);
 }
 
 inline uint8_t lowerThreshold(uint8_t x, uint8_t y) {
-  const uint8_t start = currentEye->lowerLid[x * 2];
-  const uint8_t end = currentEye->lowerLid[x * 2 + 1];
+  const uint8_t start = eyeParams->lowerLid[x * 2];
+  const uint8_t end = eyeParams->lowerLid[x * 2 + 1];
   return y <= start ? 255 : y >= end ? 0 : (end - y) * 256 / (end - start);
 }
 
 inline uint8_t upperLid(uint8_t x, uint8_t threshold) {
-  const uint8_t start = currentEye->upperLid[x * 2];
-  const uint8_t end = currentEye->upperLid[x * 2 + 1];
+  const uint8_t start = eyeParams->upperLid[x * 2];
+  const uint8_t end = eyeParams->upperLid[x * 2 + 1];
   return start + threshold * (end - start) / 256;
 }
 
 inline uint8_t lowerLid(uint8_t x, uint8_t threshold) {
-  const uint8_t start = currentEye->lowerLid[x * 2];
-  const uint8_t end = currentEye->lowerLid[x * 2 + 1];
+  const uint8_t start = eyeParams->lowerLid[x * 2];
+  const uint8_t end = eyeParams->lowerLid[x * 2 + 1];
   return end - threshold * (end - start) / 255;
 }
 
@@ -290,77 +289,128 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
     uint8_t uT,      // Upper eyelid threshold value
     uint8_t lT) {    // Lower eyelid threshold value
 
-  int screenX, screenY;
-  int16_t irisX, irisY;
-  uint16_t a;
-  uint32_t d;
-  uint16_t max_d = 0;
-  uint16_t max_a = 0;
-  uint16_t min_d = 0xff;
-  uint16_t min_a = 0xff;
-
-  const uint32_t irisThreshold = (DISPLAY_SIZE * (1023 - iScale) + 512) / 1024;
-  const uint32_t irisScale = currentEye->iris.height * 65536 / irisThreshold;
+  const uint8_t displacementMapSize = screenWidth / 2;
+  const uint16_t mapRadius = eyeParams->mapRadius;
 
   displayType &display = *eyes[e].display;
   eyeBlink &blink = eyes[e].blink;
 
-  // Set up raw pixel dump to entire screen.  Although such writes can wrap
-  // around automatically from end of rect back to beginning, the region is
-  // reset on each frame here in case of an SPI glitch.
-  // Now just issue raw 16-bit values for every pixel...
+  const int xPositionOverMap = screenWidth - scleraX; //(int) (currentEye->eyeX - screenWidth / 2);
+  const int yPositionOverMap = 40 + scleraY; //(int) (currentEye->eyeY - screenHeight / 2);
+  const int iPupilFactor = (int)((float) eyeParams->iris.height * 256 * (1.0 / (iScale / 1024.0)));
 
-  // Save initial Y value to reset on each line
-  uint16_t scleraYsave = scleraY;
-  irisX = scleraX - (currentEye->polarSclera.width - currentEye->polar.width) / 2;
-  for (screenX = 0; screenX < screenWidth; screenX++, scleraX++, irisX++) {
-    scleraY = scleraYsave;
-    irisY = scleraYsave - (currentEye->polarSclera.height - currentEye->polar.height) / 2;
-
-    
+  for (int screenX = 0; screenX < screenWidth; screenX++) {
     // Determine the extents that need to be drawn (based on where the eyelids are located
     // in both this and the previous frame).
-    auto const lastUpper = blink.lastLid[screenX].upperLid;
-    auto const currentUpper = upperLid(screenX, uT);
-    auto const minY = min(currentUpper, lastUpper);
-    auto const lastLower = blink.lastLid[screenX].lowerLid;
-    auto const currentLower = lowerLid(screenX, lT);
-    auto const maxY = max(currentLower, lastLower);
-    scleraY += minY;
-    irisY += minY;
-    for (screenY = minY; screenY < maxY; screenY++, scleraY++, irisY++) {
+    const auto previousUpper = blink.lastLid[screenX].upperLid;
+    const auto currentUpper = upperLid(screenX, uT);
+    const auto minY = min(currentUpper, previousUpper);
+    const auto previousLower = blink.lastLid[screenX].lowerLid;
+    const auto currentLower = lowerLid(screenX, lT);
+    const auto maxY = max(currentLower, previousLower);
+
+    // Figure out where we are in the displacement map. The eye (sphere) is symmetrical over
+    // X and Y, so we can just swap axes to look up the Y displacement using the same table.
+    const uint8_t *displaceX, *displaceY;
+    int8_t xmul; // Sign of X displacement: +1 or -1
+    int doff; // Offset into displacement arrays
+    if (screenX < (screenWidth / 2)) {  // Left half of screen (quadrants 2, 3)
+      displaceX = &eyeParams->displacementMap[displacementMapSize - 1 - screenX];
+      displaceY = &eyeParams->displacementMap[(displacementMapSize - 1 - screenX) * displacementMapSize];
+      xmul = -1; // X displacement is always negative
+    } else {       // Right half of screen( quadrants 1, 4)
+      displaceX = &eyeParams->displacementMap[screenX - displacementMapSize];
+      displaceY = &eyeParams->displacementMap[(screenX - displacementMapSize) * displacementMapSize];
+      xmul = 1; // X displacement is always positive
+    }
+
+    int xx = xPositionOverMap + screenX;
+    for (int screenY = minY; screenY < maxY; screenY++) {
       uint16_t p;
+
       if (screenY < currentUpper || screenY >= currentLower) {
         // We're in the eyelid
         p = 0;
-      } else if ((irisY < 0) || (irisY >= currentEye->polar.height) ||
-          (irisX < 0) || (irisX >= currentEye->polar.width)) {
-        // In sclera
-        p = currentEye->polarSclera.get(scleraX, scleraY);
       } else {
-        // Maybe iris, we'll have to check
-        // Polar angle/dist
-        p = currentEye->polar.get(irisX, irisY);
-        // Distance from edge (0-127)
-        d = p & 0x7F;
-        if (d < irisThreshold) {
-          // Yes we're within the scaled iris area
-          // Scale d to the iris image height
-          d = d * irisScale / 65536;
-          // Angle (X)
-          a = (currentEye->iris.width * (p >> 7)) / 512;
-          // Pixel = iris
-          p = currentEye->iris.get(a, d);
-          if (d > max_d) max_d = d;
-          if (a > max_a) max_a = a;
-          if (d < min_d) min_d = d;
-          if (a < min_a) min_a = a;
+        int yy = yPositionOverMap + screenY;
+        int dx, dy;
+        if (screenY < displacementMapSize) {
+          doff = displacementMapSize - screenY - 1;
+          dy = -displaceY[doff];
         } else {
-          // Not in iris, so draw the sclera
-          p = currentEye->polarSclera.get(scleraX, scleraY);
+          doff = screenY - displacementMapSize;
+          dy = displaceY[doff];
+        }
+        dx = displaceX[doff * displacementMapSize];
+        if (dx < 255) {
+          // We're inside the eyeball/sclera area
+          dx *= xmul;  // Flip x offset sign if in left half of screen
+          int mx = xx + dx;
+          int my = yy + dy;
+
+          if (mx >= 0 && mx < mapRadius * 2 && my >= 0 && my < mapRadius * 2) {
+            // We're inside the polar angle/distance maps
+            int angle, distance, moff;
+            if (my >= mapRadius) {
+              my -= mapRadius;
+              if (mx >= mapRadius) {
+                // Quadrant 1 (bottom right), so we can use the angle/dist lookups directly
+                mx -= mapRadius;
+                moff = my * mapRadius + mx;
+                angle = eyeParams->polarAngle[moff];
+                distance = eyeParams->polarDist[moff];
+              } else {
+                // Quadrant 2 (bottom left), so rotate angle by 270 degrees clockwise (768) and mirror distance on X axis
+                mx = mapRadius - mx - 1;
+                angle = eyeParams->polarAngle[mx * mapRadius + my] + 768;
+                distance = eyeParams->polarDist[my * mapRadius + mx];
+              }
+            } else {
+              if (mx < mapRadius) {
+                // Quadrant 3 (top left), so rotate angle by 180 degrees and mirror distance on the X and Y axes
+                mx = mapRadius - mx - 1;
+                my = mapRadius - my - 1;
+                moff = my * mapRadius + mx;
+                angle = eyeParams->polarAngle[moff] + 512;
+                distance = eyeParams->polarDist[moff];
+              } else {
+                // Quadrant 4 (top right), so rotate angle by 90 degrees clockwise (256) and mirror distance on Y axis
+                mx -= mapRadius;
+                my = mapRadius - my - 1;
+                angle = eyeParams->polarAngle[mx * mapRadius + my] + 256;
+                distance = eyeParams->polarDist[my * mapRadius + mx];
+              }
+            }
+
+            // Convert the polar angle/distance to text map coordinates
+            if (distance >= 0) {
+              // We're in the sclera
+              // angle = ((angle + currentEye.sclera.angle) & 1023) ^ currentEye.sclera.mirror;
+              int tx = angle * eyeParams->sclera.width / 1024; // Texture map x/y
+              int ty = distance * eyeParams->sclera.height / 128;
+              p = eyeParams->sclera.get(tx, ty);
+            } else if (distance > -128) {
+              // Either the iris or pupil
+              int ty = distance * iPupilFactor / -32768;
+              if (ty >= eyeParams->iris.height) {
+                // Pupil
+                p = eyeParams->pupilColor;
+              } else {
+                // Iris
+                // angle = ((angle + eye[eyeNum].iris.angle) & 1023) ^ eye[eyeNum].iris.mirror;
+                int tx = angle * eyeParams->iris.width / 1024;
+                p = eyeParams->iris.get(tx, ty);
+              }
+            } else {
+              // d = -128 -> "back" of eye (outside the polar map)
+              p = eyeParams->backColor;
+            }
+          } else {
+            // We're outside the eye area, i.e. this must be on an eyelid
+            p = 0;
+          }
         }
       }
-
       display.drawPixel(screenX, screenY, p);
     } // end column
   } // end scanline
@@ -403,6 +453,8 @@ void drawEye( // Renders one eye.  Inputs must be pre-clipped & valid.
   eyes[e].display->setTextSize(2);
   eyes[e].display->setTextColor(WHITE, BLACK);
   eyes[e].display->drawNumber(fps, 100, 100);
+  eyes[e].display->drawNumber(iPupilFactor, 100, 120);
+  eyes[e].display->drawNumber(iScale, 100, 140);
   // ==================================================================================
 
 
@@ -597,27 +649,38 @@ void frame( // Process motion for a single frame of left or right eye
   // Process motion, blinking and iris scale into renderable values
 
   // Scale eye X/Y positions (0-1023) to pixel units used by drawEye()
-  eyeX = map(eyeX, 0, 1023, 0, currentEye->polarSclera.width - DISPLAY_SIZE);
-  eyeY = map(eyeY, 0, 1023, 0, currentEye->polarSclera.width - DISPLAY_SIZE);
-  if (eyeIndex == 1) eyeX = (currentEye->polarSclera.width - DISPLAY_SIZE) - eyeX; // Mirrored display
+
+  [[deprecated]]
+  int POLAR_SCLERA_SIZE = 375;    // TODO: get rid of this
+
+  eyeX = map(eyeX, 0, 1023, 0, POLAR_SCLERA_SIZE - screenWidth);
+  eyeY = map(eyeY, 0, 1023, 0, POLAR_SCLERA_SIZE - screenHeight);
+  if (eyeIndex == 1) {
+    // Mirrored display
+    eyeX = (POLAR_SCLERA_SIZE - screenWidth) - eyeX;
+  }
 
   // Horizontal position is offset so that eyes are very slightly crossed
   // to appear fixated (converged) at a conversational distance.  Number
   // here was extracted from my posterior and not mathematically based.
   // I suppose one could get all clever with a range sensor, but for now...
-  if (NUM_EYES > 1) eyeX += 4;
-  if (eyeX > (currentEye->polarSclera.width - DISPLAY_SIZE)) eyeX = (currentEye->polarSclera.height - DISPLAY_SIZE);
+  if (NUM_EYES > 1) {
+    eyeX = max(0, eyeX + 50);
+  }
+  if (eyeX > (POLAR_SCLERA_SIZE - screenWidth)) {
+    eyeX = POLAR_SCLERA_SIZE - screenWidth;
+  }
 
   // Eyelids are rendered using a brightness threshold image.  This same
   // map can be used to simplify another problem: making the upper eyelid
   // track the pupil (eyes tend to open only as much as needed -- e.g. look
   // down and the upper eyelid drops).  Just sample a point in the upper
   // lid map slightly above the pupil to determine the rendering threshold.
-  static uint16_t uThreshold = DISPLAY_SIZE;
+  static uint16_t uThreshold = screenHeight;
   uint16_t lThreshold, n;
 #ifdef TRACKING
-  int16_t sampleX = currentEye->polarSclera.width / 2 - (eyeX / 2);    // Reduce X influence
-  int16_t sampleY = currentEye->polarSclera.height / 2 - (eyeY + currentEye->iris.height / 4);
+  int16_t sampleX = POLAR_SCLERA_SIZE / 2 - (eyeX / 2);    // Reduce X influence
+  int16_t sampleY = POLAR_SCLERA_SIZE / 2 - (eyeY + eyeParams->iris.height / 4);
   // Eyelid is slightly asymmetrical, so two readings are taken, averaged
   if (sampleY < 0) {
     n = 0;
@@ -656,7 +719,7 @@ void frame( // Process motion for a single frame of left or right eye
 // Autonomous iris motion uses a fractal behavior to simulate both the major
 // reaction of the eye plus the continuous smaller adjustments that occur.
 
-uint16_t oldIris = (currentEye->irisMin + currentEye->irisMax) / 2, newIris;
+uint16_t oldIris = (eyeParams->irisMin + eyeParams->irisMax) / 2, newIris;
 
 void split( // Subdivides motion path into two sub-paths w/randomization
     int16_t startValue, // Iris scale value (from irisMin to irisMax) at start
@@ -677,10 +740,10 @@ void split( // Subdivides motion path into two sub-paths w/randomization
     int16_t v;         // Interim value
     while ((dt = (micros() - startTime)) < duration) {
       v = startValue + (((endValue - startValue) * dt) / duration);
-      if (v < currentEye->irisMin) {
-        v = currentEye->irisMin; // Clip just in case
-      } else if (v > currentEye->irisMax) {
-        v = currentEye->irisMax;
+      if (v < eyeParams->irisMin) {
+        v = eyeParams->irisMin; // Clip just in case
+      } else if (v > eyeParams->irisMax) {
+        v = eyeParams->irisMax;
       }
 
 //      static elapsedMillis eyeTime{};
@@ -725,8 +788,8 @@ void loop() {
 
 #else  // Autonomous iris scaling -- invoke recursive function
 
-  newIris = random(currentEye->irisMin, currentEye->irisMax);
-  split(oldIris, newIris, micros(), 10000000L, currentEye->irisMax - currentEye->irisMin);
+  newIris = random(eyeParams->irisMin, eyeParams->irisMax);
+  split(oldIris, newIris, micros(), 10000000L, eyeParams->irisMax - eyeParams->irisMin);
   oldIris = newIris;
 
 #endif // LIGHT_PIN

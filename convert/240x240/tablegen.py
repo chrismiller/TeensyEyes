@@ -64,22 +64,23 @@ def outputImage(filename: str, image: Image, name: str) -> None:
   print()
 
 
-def outputPolarSclera(arg: int, defaultFilename: str) -> None:
+def outputGreyscale(data, width: int, height: int, name: str) -> None:
   """
-  Load, validate and output the sclera image file
+  Writes an image file out to a C style array of uint8_t, and also a PNG and raw binary file, in greyscale format
   """
-  filename = getParam(arg, defaultFilename)
-  image = Image.open(filename)
-  image = image.convert('RGB')
-  width = image.size[0]
-  height = image.size[1]
 
-  # Check the image is square
-  if width != height:
-    sys.stderr.write('{} is {}x{} but it needs to be square'.format(filename, width, height))
-    exit(1)
+  print(f'  const uint8_t {name}[{width} * {height}] PROGMEM = {{')
+  hexTable = HexTable(width * height, 16, 2, 2)
+  for i in range(width * height):
+    hexTable.write(data[i])
 
-  outputImage(filename, image, 'polarSclera')
+  f = open(f'{name}.bin', 'w+b')
+  f.write(bytes(data))
+  f.close()
+
+  img = Image.frombytes('L', (width, height), data)
+  img.save(f'{name}.png')
+
 
 def outputSclera(arg: int, defaultFilename: str) -> None:
   """
@@ -245,7 +246,7 @@ def outputPolarMaps(mapRadius: int, eyeRadius: int, irisRadius: int, slitPupilRa
               d2 = dx * dx + dy2    # Distance from pixel to left 'xc' point
               if d2 <= r2:
                 # The point is within the circle
-                polarDist[y * mapRadius + x] = 255 - i # Set to distance 'i'
+                polarDist[distIndex] = 255 - i # Set to distance 'i'
                 break
 
           if polarDist[distIndex] < 128:
@@ -256,96 +257,9 @@ def outputPolarMaps(mapRadius: int, eyeRadius: int, irisRadius: int, slitPupilRa
       distIndex += 1
 
   print('  // Polar coordinate mappings for the iris and sclera')
-  print(f'  const uint8_t polarAngle[{mapRadius} * {mapRadius}] PROGMEM = {{')
-  hexTable = HexTable(mapRadius2, 16, 2, 2)
-  for i in range(mapRadius2):
-    hexTable.write(polarAngle[i])
-
-  f = open('polarAngle.bin', 'w+b')
-  f.write(bytes(polarAngle))
-  f.close()
-
-  img = Image.frombytes('L', (mapRadius, mapRadius), polarAngle)
-  img.save("polarAngle.png")
-
-  print(f'  const uint8_t polarDist[{mapRadius} * {mapRadius}] PROGMEM = {{')
-  hexTable = HexTable(mapRadius2, 16, 2, 2)
-  for i in range(mapRadius2):
-    hexTable.write(polarDist[i])
-
-  f = open('polarDist.bin', 'w+b')
-  f.write(bytes(polarDist))
-  f.close()
-
-  img = Image.frombytes('L', (mapRadius, mapRadius), polarDist)
-  img.save("polarDist.png")
-
-
-def outputPolar(arg: int, defaultFilename: str) -> None:
-  """
-  Generate the polar coordinate table, return the iris size
-  """
-
-  # For unusual-shaped pupils (dragon, goat, etc.), a precomputed image
-  # provides polar distances.  Optional additional argument is filename
-  # (or file 'pupilMap.png' in the local directory) is what's used,
-  # otherwise a regular round iris is calculated.
-  filename = getParam(arg, defaultFilename)
-  try:
-    image = Image.open(filename)
-    width = image.size[0]
-    height = image.size[1]
-    if width != height:
-      sys.stderr.write('Pupil map image {} must be square, but is {}x{}'.format(filename, width, height))
-      exit(1)
-
-    image = image.convert('L')
-    pixels = image.load()
-    irisSize = width
-    usePupilMap = True
-
-  except IOError:
-    irisSize = DEFAULT_IRIS_SIZE
-    usePupilMap = False
-
-  if irisSize % 2 != 0:
-    sys.stderr.write('Iris diameter {} must be an even value'.format(irisSize))
-    exit(1)
-
-  # One element per screen pixel, 16 bits per element -- high 9 bits are
-  # angle relative to center point (fixed point, 0-511) low 7 bits are
-  # distance from circle perimeter (fixed point, 0-127, pixels outsize circle
-  # are set to 127).
-  print('  constexpr uint8_t irisSize = {};'.format(irisSize))
-  print('  const uint16_t polar[irisSize * irisSize] PROGMEM = {')
-
-  hexTable = HexTable(irisSize * irisSize, 12, 4, 2)
-  radius = irisSize / 2
-  for y in range(irisSize):
-    dy = y - radius + 0.5
-    for x in range(irisSize):
-      dx = x - radius + 0.5
-      distance = math.sqrt(dx * dx + dy * dy)
-      if distance >= radius:  # Outside circle
-        hexTable.write(127)  # angle = 0, dist = 127
-      else:
-        angle = math.atan2(dy, dx)  # -pi to +pi
-        angle += math.pi  # 0.0 to 2pi
-        angle /= (math.pi * 2.0)  # 0.0 to <1.0
-        if usePupilMap:
-          # Look up polar coordinates in pupil map image
-          distance = pixels[x, y] / 255.0
-        else:
-          distance /= radius  # 0.0 to <1.0
-        distance *= 128.0  # 0.0 to <128.0
-        if distance > 127:
-          distance = 127  # Clip
-        a = int(angle * 512.0)  # 0 to 511
-        d = 127 - int(distance)  # 127 to 0
-        hexTable.write((a << 7) | d)
-
-  print('  const Image polarMap(polar, irisSize, irisSize);')
-  print()
+  print(f'  constexpr uint8_t polarMapSize = {mapRadius};')
+  outputGreyscale(polarAngle, mapRadius, mapRadius, 'polarAngle')
+  outputGreyscale(polarDist, mapRadius, mapRadius, 'polarDist')
 
 
 def outputDisplacement(mapRadius: int, eyeRadius: int) -> None:
@@ -355,10 +269,7 @@ def outputDisplacement(mapRadius: int, eyeRadius: int) -> None:
 
   size = SCREEN_WIDTH // 2
 
-  print('  constexpr uint8_t dispSize = {};'.format(size))
-  print('  const uint8_t disp[dispSize * dispSize] PROGMEM = {')
-
-  hexTable = HexTable(size * size, 16, 2, 2)
+  displacementMap = np.full(size * size, 0, dtype=np.uint8)
   eyeRadius2 = eyeRadius * eyeRadius
   for y in range(size):
     dy = y + 0.5
@@ -375,9 +286,13 @@ def outputDisplacement(mapRadius: int, eyeRadius: int) -> None:
         a = math.atan2(d, h)
         pa = a / M_PI_2 * mapRadius
         dx /= d
-        hexTable.write(int(dx * pa - x))
+        displacementMap[y * size + x] = int(dx * pa - x)
       else:
-        hexTable.write(255)
+        displacementMap[y * size + x] = 255
+
+  print('  constexpr uint8_t dispSize = {};'.format(size))
+  outputGreyscale(displacementMap, size, size, "disp")
+
 
 
 def main():
@@ -391,7 +306,6 @@ def main():
   print()
   print(f'namespace {eyeName} {{')
 
-  outputPolarSclera(2, 'sclera.png')    # TODO: deprecated!
   outputSclera(2, 'sclera.bmp')
   outputIris(3, 'iris.png')
 
@@ -405,8 +319,6 @@ def main():
   outputEyelid(7, 'lower.bmp', 'lower')
   print('#endif // SYMMETRICAL_EYELID')
   print()
-
-  outputPolar(8, 'pupilMap.png')    # TODO: deprecated!
 
   pupilColour = 0
   backColour = 0
@@ -422,8 +334,8 @@ def main():
   outputDisplacement(mapRadius, eyeRadius)
 
   print('  EyeParams params(')
-  print(f'    {pupilColour}, {backColour}, irisSize, {irisMin}, {irisMax}, {eyeRadius}, {mapRadius},'
-        f' irisImage, polarScleraImage, scleraImage, polarMap, polarAngle, polarDist, disp, upper, lower')
+  print(f'    {pupilColour}, {backColour}, {irisMin}, {irisMax}, {eyeRadius}, {mapRadius},'
+        f' irisImage, scleraImage, polarAngle, polarDist, disp, upper, lower')
   print('  );')
 
   print('}')  # End of namespace block
