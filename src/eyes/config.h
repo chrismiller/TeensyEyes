@@ -77,31 +77,18 @@ eyeInfo_t eyeInfo[] = {
    {10, 9,  11, 13,  8, -1,  0, 0 }, // LEFT EYE display-select and wink pins, no rotation
 #endif
 };
+
+
 // INPUT SETTINGS (for controlling eye motion) -----------------------------
 
-// JOYSTICK_X_PIN and JOYSTICK_Y_PIN specify analog input pins for manually
-// controlling the eye with an analog joystick.  If set to -1 or if not
-// defined, the eye will move on its own.
-// IRIS_PIN speficies an analog input pin for a photocell to make pupils
-// react to light (or potentiometer for manual control).  If set to -1 or
-// if not defined, the pupils will change on their own.
-// BLINK_PIN specifies an input pin for a button (to ground) that will
-// make any/all eyes blink.  If set to -1 or if not defined, the eyes will
-// only blink if AUTOBLINK is defined, or if the eyeInfo[] table above
-// includes wink button settings for each eye.
+bool autoBlink{true};         // If enabled, the eyes blink autonomously
+bool moveEyesRandomly{true};  // If enabled, the eyes look around randomly
 
-//#define JOYSTICK_X_PIN A3 // Analog pin for eye horiz pos (else auto)
-//#define JOYSTICK_Y_PIN A4 // Analog pin for eye vert position (")
-//#define JOYSTICK_X_FLIP   // If defined, reverse stick X axis
-//#define JOYSTICK_Y_FLIP   // If defined, reverse stick Y axis
+bool autoPupilResize{true};   // If enabled, the pupils resize autonomously
+int8_t lightSensorPin{-1};    // Otherwise, set this pin to use a light sensor
+uint16_t  lightSensorMin{0};
+uint16_t  lightSensorMax{1023};
 
+int8_t blinkPin{-1};          // A button to make the eyes blink
 
-#define TRACKING            // If defined, eyelid tracks pupil
-#define AUTOBLINK           // If defined, eyes also blink autonomously
-//#define BLINK_PIN         16 // Pin for manual blink button (BOTH eyes)
-  //#define LIGHT_PIN      A3 // Photocell or potentiometer (else auto iris)
-  //#define LIGHT_PIN_FLIP    // If defined, reverse reading from dial/photocell
-  #define LIGHT_MIN       0 // Lower reading from sensor
-  #define LIGHT_MAX    1023 // Upper reading from sensor
-
-#define IRIS_SMOOTH         // If enabled, filter input from IRIS_PIN
+uint32_t gazeMax{3000000};    // Max wait time (microseconds) for major eye movements

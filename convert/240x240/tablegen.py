@@ -11,17 +11,17 @@ pupil is assumed round unless pupilMap.png image is present.
 Output is to stdout; should be redirected to file for use.
 """
 
-import sys
+import json
 import math
 import os
+import sys
 import numpy as np
 from PIL import Image
+from config import EyeConfig, IrisConfig, ScleraConfig
 from hextable import HexTable
 
 SCREEN_WIDTH = 240
 SCREEN_HEIGHT = 240
-
-DEFAULT_IRIS_SIZE = 150
 
 M_PI = math.pi
 M_PI_2 = math.pi / 2.0
@@ -35,6 +35,15 @@ def getParam(index: int, default: str) -> str:
     return sys.argv[index]
   except IndexError:
     return default
+
+
+def loadEyeConfig(filename: str) -> EyeConfig:
+  try:
+    f = open(filename)
+    return EyeConfig.fromDict(json.load(f))
+  except Exception as e:
+    sys.stderr.write(f'Could not read configuration file {filename}: {e}')
+    exit(1)
 
 
 def outputImage(filename: str, image: Image, name: str) -> None:
@@ -60,9 +69,6 @@ def outputImage(filename: str, image: Image, name: str) -> None:
         ((p[1] & 0b11111100) << 3) |  # to 16-bit value with
         (p[2] >> 3))  # 5/6/5-bit packing
 
-  print('  const Image {}Image({}, {}, {});'.format(name, name, name + 'Width', name + 'Height'))
-  print()
-
 
 def outputGreyscale(data, width: int, height: int, name: str) -> None:
   """
@@ -82,31 +88,38 @@ def outputGreyscale(data, width: int, height: int, name: str) -> None:
   img.save(f'{name}.png')
 
 
-def outputSclera(arg: int, defaultFilename: str) -> None:
+def outputSclera(arg: int, sclera: ScleraConfig) -> None:
   """
-  Load, validate and output the sclera image file
+  Load, validate and output the sclera configuration and texture map
   """
-  filename = getParam(arg, defaultFilename)
-  image = Image.open(filename)
-  image = image.convert('RGB')
-  outputImage(filename, image, 'sclera')
+  filename = getParam(arg, sclera.filename)
+  if filename is not None:
+    image = Image.open(filename)
+    image = image.convert('RGB')
+    outputImage(filename, image, 'sclera')
+  else:
+    c = (sclera.color >> 11, (sclera.color >> 5) & 0b00111111, sclera.color & 0b00011111)
+    outputImage("Single color", Image.new('RGB', (1, 1), c))
 
 
-def outputIris(arg: int, defaultFilename: str) -> None:
+def outputIris(arg: int, iris: IrisConfig) -> None:
   """
-  Load, validate and output the iris image file
+  Load, validate and output the iris configuration and texture map
   """
-  filename = getParam(arg, defaultFilename)
-  image = Image.open(filename)
-  image = image.convert('RGB')
-  width = image.size[0]
-  height = image.size[1]
+  filename = getParam(arg, iris.filename)
+  if filename is not None:
+    image = Image.open(filename)
+    image = image.convert('RGB')
+    width = image.size[0]
+    height = image.size[1]
 
-  if width > 512 or height > 128:
-    sys.stderr.write('Iris image can\'t exceed 512 pixels wide or 128 pixels tall')
-    exit(1)
+    if width > 512 or height > 128:
+      raise Exception('Iris image can\'t exceed 512 pixels wide or 128 pixels tall')
 
-  outputImage(filename, image, 'iris')
+    outputImage(filename, image, 'iris')
+  else:
+    c = (iris.color >> 11, (iris.color >> 5) & 0b00111111, iris.color & 0b00011111)
+    outputImage("Single color", Image.new('RGB', (1, 1), c))
 
 
 def outputEyelid(arg: int, defaultFilename: str, tableName: str) -> None:
@@ -156,14 +169,6 @@ def screenToMap(mapRadius: int, eyeRadius: int, value: int) -> float:
   return math.atan2(value, math.sqrt(eyeRadius * eyeRadius - value * value)) / M_PI_2 * mapRadius
 
 
-def mapToScreen(mapRadius: int, eyeRadius: int, value: int) -> float:
-  """
-  Inverse of the above function
-  """
-
-  return math.sin(value / mapRadius) * M_PI_2 * eyeRadius
-
-
 def outputPolarMaps(mapRadius: int, eyeRadius: int, irisRadius: int, slitPupilRadius: int = 0) -> None:
   """
   Generates one quadrant of a polar coordinate map radius x radius in size, suitable for
@@ -201,7 +206,7 @@ def outputPolarMaps(mapRadius: int, eyeRadius: int, irisRadius: int, slitPupilRa
       if d2 > mapRadius2:
         # The point is outside the bounds of the eye, mark it as such
         polarAngle[angleIndex] = 0
-        polarDist[distIndex] = 128
+        polarDist[distIndex] = 255
       else:
         # This point is within the eye area
         angle = math.atan2(dy, dx)              # -pi to +pi (0 to +pi/2 in first quadrant)
@@ -215,15 +220,11 @@ def outputPolarMaps(mapRadius: int, eyeRadius: int, irisRadius: int, slitPupilRa
           d = (mapRadius - d) / (mapRadius - iRad) * 127.0
           polarDist[distIndex] = int(d)   # 0 to 127, 0 = outer edge of sclera
         else:
-          # This point is in the iris. We use values in the range 128-255 to indicate this.
+          # This point is in the iris. We use values in the range 128-254 to indicate this.
           if slitPupilRadius == 0:
-            d = (iRad - d) / iRad * -127.0
-            polarDist[distIndex] = int(d) + 255   # 128 to 255
+            d = (iRad - d) / iRad * 127.0
+            polarDist[distIndex] = int(d) + 128
           else:
-            # This is ugly, it iteratively calculates the polarDist value by trial
-            # and error. It should be possible to algebraically simplify this and
-            # find the single polarDist point for a given pixel, but it hasn't been
-            # implemented yet
             xp = x + 0.5
 
             # Figure out a sensible starting point based on neighbouring pixels that we've already calculated.
@@ -231,7 +232,7 @@ def outputPolarMaps(mapRadius: int, eyeRadius: int, irisRadius: int, slitPupilRa
             start = 129 if x == 0 and y == 0 else polarDist[(y - 1) * mapRadius] if x == 0 else polarDist[y * mapRadius + x - 1]
             start = 255 - start
             for i in range(start, -1, -1):
-              ratio = i / 128.0             # 0.0 (open) to just-under-1.0 (slit) (>= 1.0 will cause trouble)
+              ratio = i / 128.0    # 0.0 (open) to just-under-1.0 (slit) (>= 1.0 will cause trouble)
               # Interpolate a point between top of iris and top of slit pupil, based on ratio
               y1 = iRad - (iRad - slitPupilRadius) * ratio
               # x1 is 0 and so is dropped from equation below
@@ -257,7 +258,6 @@ def outputPolarMaps(mapRadius: int, eyeRadius: int, irisRadius: int, slitPupilRa
       distIndex += 1
 
   print('  // Polar coordinate mappings for the iris and sclera')
-  print(f'  constexpr uint8_t polarMapSize = {mapRadius};')
   outputGreyscale(polarAngle, mapRadius, mapRadius, 'polarAngle')
   outputGreyscale(polarDist, mapRadius, mapRadius, 'polarDist')
 
@@ -291,13 +291,15 @@ def outputDisplacement(mapRadius: int, eyeRadius: int) -> None:
         displacementMap[y * size + x] = 255
 
   print('  constexpr uint8_t dispSize = {};'.format(size))
-  outputGreyscale(displacementMap, size, size, "disp")
+  outputGreyscale(displacementMap, size, size, "displacementMap")
 
 
 
 def main():
+  config = loadEyeConfig(getParam(1, 'config.eye'))
+
   try:
-    eyeName = sys.argv[1]
+    eyeName = sys.argv[2]
   except IndexError:
     # No eye name supplied, so use the name of the directory
     eyeName = os.path.basename(os.getcwd()).replace(" ", "")
@@ -306,37 +308,38 @@ def main():
   print()
   print(f'namespace {eyeName} {{')
 
-  outputSclera(2, 'sclera.bmp')
-  outputIris(3, 'iris.png')
+  outputIris(3, config.iris)
+  outputSclera(4, config.sclera)
+  outputEyelid(5, config.eyelid.upperFilename, 'upper')
+  outputEyelid(6, config.eyelid.lowerFilename, 'lower')
 
-  print('#ifdef SYMMETRICAL_EYELID')
-  print()
-  outputEyelid(4, 'upper-symmetrical.bmp', 'upper')
-  outputEyelid(5, 'lower-symmetrical.bmp', 'lower')
-  print('#else')
-  print()
-  outputEyelid(6, 'upper.bmp', 'upper')
-  outputEyelid(7, 'lower.bmp', 'lower')
-  print('#endif // SYMMETRICAL_EYELID')
-  print()
-
-  pupilColour = 0
-  backColour = 0
-  irisMin = 570
-  irisMax = 800
-  irisRadius = 80
-  eyeRadius = 120
   mapRadius = 240
-  slitPupilRadius = 60
 
-  outputPolarMaps(mapRadius, eyeRadius, irisRadius, slitPupilRadius)
+  outputPolarMaps(mapRadius, config.radius, config.iris.radius, config.pupil.slitRadius)
 
-  outputDisplacement(mapRadius, eyeRadius)
+  outputDisplacement(mapRadius, config.radius)
 
-  print('  EyeParams params(')
-  print(f'    {pupilColour}, {backColour}, {irisMin}, {irisMax}, {eyeRadius}, {mapRadius},'
-        f' irisImage, scleraImage, polarAngle, polarDist, disp, upper, lower')
-  print('  );')
+
+  """
+  EyeParams e = {
+      radius, backColor, tracking,
+      {color, slitRadius, min, max},
+      {irisRadius, {irisTexture, irisWidth, irisHeight}, irisColor, irisSpin},
+      {{scleraTexture, scleraWidth, scleraHeight}, scleraColor, scleraSpin},
+      {upper, lower, color},
+      {mapRadius, polarAngle, polarDist, displacementMap}
+  };
+"""
+
+
+  print('  EyeParams params = {')
+  print(f'      {config.radius}, {config.backColor}, {str(config.tracking).lower()}, displacementMap, ')
+  print(f'      {{ {config.pupil.color}, {config.pupil.slitRadius}, {config.pupil.min}, {config.pupil.max} }},')
+  print(f'      {{ {config.iris.radius}, {{ iris, irisWidth, irisHeight }}, {config.iris.color}, {config.iris.spin} }},')
+  print(f'      {{ {{ sclera, scleraWidth, scleraHeight }}, {config.sclera.color}, {config.sclera.spin} }},')
+  print(f'      {{ upper, lower, {config.eyelid.color} }},')
+  print(f'      {{ {mapRadius}, polarAngle, polarDist }}')
+  print('  };')
 
   print('}')  # End of namespace block
 
