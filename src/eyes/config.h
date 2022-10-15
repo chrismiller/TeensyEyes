@@ -18,6 +18,10 @@
 // Enable the eye(s) you want to #include -- HUGE graphics tables for various eyes:
 #ifdef LARGE_EYES
 #include "eyes/graphics/240x240/defaultEye.h"    // Standard human-ish hazel eye
+#include "eyes/graphics/240x240/animeEye.h"
+#include "eyes/graphics/240x240/demonEye.h"
+#include "eyes/graphics/240x240/hypnoEye.h"
+#include "eyes/graphics/240x240/snakeEye.h"
 //#include "eyes/graphics/240x240/doeEye.h"        // Cartoon deer eye (DISABLE TRACKING)
 //#include "eyes/graphics/240x240/newtEye.h"       // Eye of newt
 //#include "eyes/graphics/240x240/terminatorEye.h" // Git to da choppah!

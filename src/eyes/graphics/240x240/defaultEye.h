@@ -16226,10 +16226,10 @@ namespace defaultEye {
   };
 
   EyeParams params = {
-      125, 35138, true, displacementMap, 
+      125, 35138, true, 0.0, displacementMap,
       { 0, 0, 0.2, 0.8 },
-      { 80, { iris, irisWidth, irisHeight }, 0, 5.0 },
-      { { sclera, scleraWidth, scleraHeight }, 0, 2.0 },
+      { 80, { iris, irisWidth, irisHeight }, 0, 5 },
+      { { sclera, scleraWidth, scleraHeight }, 0, 0, 2 },
       { upper, lower, 0 },
       { 240, polarAngle, polarDist }
   };
