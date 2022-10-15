@@ -69,7 +69,7 @@ uint8_t eyeIndex{}; // eye[] array counter
 
 OverallState state{};
 
-EyeParams *eyeParams = &defaultEye::params;
+const EyeParams *eyeParams = &defaultEye::params;
 
 float mapToScreen(int value, int mapRadius, int eyeRadius) {
   return sinf((float) value / (float) mapRadius) * M_PI_2 * eyeRadius;
