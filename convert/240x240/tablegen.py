@@ -80,10 +80,6 @@ def outputGreyscale(data, width: int, height: int, name: str) -> None:
   for i in range(width * height):
     hexTable.write(data[i])
 
-  f = open(f'{name}.bin', 'w+b')
-  f.write(bytes(data))
-  f.close()
-
   img = Image.frombytes('L', (width, height), data)
   img.save(f'{name}.png')
 
