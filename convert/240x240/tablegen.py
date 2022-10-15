@@ -121,24 +121,35 @@ def outputIris(arg: int, iris: IrisConfig) -> None:
     outputSinglePixelImage(iris.color, 'iris')
 
 
+def outputNoEyelids() -> None:
+  print('  // All zeroes, which results in no upper eyelid')
+  print('  const uint8_t upper[screenWidth * 2] PROGMEM = {')
+  for i in range(30):
+    print('   ' + ' 0x00,' * 16)
+  print('  };')
+  print()
+  print('  // All 255, which results in no lower eyelid')
+  print('  const uint8_t lower[screenWidth * 2] PROGMEM = {')
+  for i in range(30):
+    print('   ' + ' 0xFF,' * 16)
+  print('  };')
+  print()
+
+
 def outputEyelid(arg: int, defaultFilename: str, tableName: str) -> None:
   """
   Load, validate and output an eyelid threshold lookup table
   """
   filename = getParam(arg, defaultFilename)
 
-  if filename is None:
-    # Make an all white image which results in no eyelids
-    image = Image.new('L', (SCREEN_WIDTH, SCREEN_HEIGHT), 0x1)
-  else:
-    image = Image.open(filename)
-    if (image.size[0] != SCREEN_WIDTH) or (image.size[1] != SCREEN_HEIGHT):
-      raise Exception('{} dimensions must match screen size of {}x{}'.format(filename, SCREEN_WIDTH, SCREEN_HEIGHT))
+  image = Image.open(filename)
+  if (image.size[0] != SCREEN_WIDTH) or (image.size[1] != SCREEN_HEIGHT):
+    raise Exception(f'{filename} dimensions must match screen size of {SCREEN_WIDTH}x{SCREEN_HEIGHT}')
 
   image = image.convert('L')
   pixels = image.load()
 
-  print('  // An array of vertical start (inclusive) and end (exclusive) locations for each {} eyelid column'.format(filename))
+  print(f'  // An array of vertical start (inclusive) and end (exclusive) locations for each {filename} eyelid column')
   print('  const uint8_t {}[screenWidth * 2] PROGMEM = {{'.format(tableName))
 
   hexTable = HexTable(image.size[0] * 2, 16, 2, 2)
@@ -313,8 +324,12 @@ def main():
 
   outputIris(3, config.iris)
   outputSclera(4, config.sclera)
-  outputEyelid(5, config.eyelid.upperFilename, 'upper')
-  outputEyelid(6, config.eyelid.lowerFilename, 'lower')
+
+  if config.eyelid.upperFilename is None:
+    outputNoEyelids()
+  else:
+    outputEyelid(5, config.eyelid.upperFilename, 'upper')
+    outputEyelid(6, config.eyelid.lowerFilename, 'lower')
 
   mapRadius = 240
 
