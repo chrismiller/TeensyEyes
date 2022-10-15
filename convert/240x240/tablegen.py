@@ -114,7 +114,7 @@ def outputIris(arg: int, iris: IrisConfig) -> None:
     height = image.size[1]
 
     if width > 512 or height > 128:
-      raise Exception('Iris image can\'t exceed 512 pixels wide or 128 pixels tall')
+      raise Exception(f'Iris image is {width}x{height} - it must not exceed 512 pixels wide or 128 pixels tall')
 
     outputImage(filename, image, 'iris')
   else:
@@ -335,11 +335,11 @@ def main():
 """
 
 
-  print('  EyeParams params = {')
-  print(f'      {config.radius}, {config.backColor}, {config.squint}, {str(config.tracking).lower()}, displacementMap, ')
+  print('  const EyeParams params = {')
+  print(f'      {config.radius}, {config.backColor}, {str(config.tracking).lower()}, {config.squint}, displacementMap, ')
   print(f'      {{ {config.pupil.color}, {config.pupil.slitRadius}, {config.pupil.min}, {config.pupil.max} }},')
   print(f'      {{ {config.iris.radius}, {{ iris, irisWidth, irisHeight }}, {config.iris.color}, {config.iris.angle}, {config.iris.spin} }},')
-  print(f'      {{ {{ sclera, scleraWidth, scleraHeight }}, {config.sclera.color}, {config.sclera.spin} }},')
+  print(f'      {{ {{ sclera, scleraWidth, scleraHeight }}, {config.sclera.color}, {config.sclera.angle}, {config.sclera.spin} }},')
   print(f'      {{ upper, lower, {config.eyelid.color} }},')
   print(f'      {{ {mapRadius}, polarAngle, polarDist }}')
   print('  };')

@@ -85,7 +85,7 @@ class EyeConfig:
       eyeRadius = _toInt(params.get('radius', 120))
       tracking = bool(params.get('tracking', True))
       backColor = _toInt(params.get('backColor', 0))
-      squint = float(params.get('squint', 0.0))
+      squint = float(params.get('squint', 0.5))
 
       pupilDict = params.get('pupil', {})
       pupil = PupilConfig(_toInt(pupilDict.get('color', 0)), _toInt(pupilDict.get('slitRadius', 0)),
@@ -98,7 +98,7 @@ class EyeConfig:
 
       scleraDict = params.get('sclera', {})
       sclera = ScleraConfig(scleraDict.get('filename'), _toInt(scleraDict.get('color', 0)),
-                            float(scleraDict.get('spin', 0.0)))
+                            _toInt(scleraDict.get('spin', 0)))
 
       eyelidDict = params.get('eyelid', {})
       eyelid = EyelidConfig(eyelidDict.get('upperFilename'), eyelidDict.get('lowerFilename'), eyelidDict.get('color', 0))
