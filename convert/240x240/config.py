@@ -32,6 +32,7 @@ class IrisConfig:
     self.filename = filename
     self.color = color
     self.radius = radius
+    self.angle = angle
     self.spin = spin
 
 
@@ -67,11 +68,12 @@ class EyeConfig:
   A class that holds the configuration for a single eye.
   """
 
-  def __init__(self, radius: int, tracking: bool, backColor: int, pupil: PupilConfig, iris: IrisConfig,
-               sclera: ScleraConfig, eyelid: EyelidConfig):
+  def __init__(self, radius: int, tracking: bool, backColor: int, squint: float, pupil: PupilConfig,
+               iris: IrisConfig, sclera: ScleraConfig, eyelid: EyelidConfig):
     self.radius = radius
     self.tracking = tracking
     self.backColor = backColor
+    self.squint = squint
     self.pupil = pupil
     self.iris = iris
     self.sclera = sclera
@@ -83,6 +85,7 @@ class EyeConfig:
       eyeRadius = _toInt(params.get('radius', 120))
       tracking = bool(params.get('tracking', True))
       backColor = _toInt(params.get('backColor', 0))
+      squint = float(params.get('squint', 0.0))
 
       pupilDict = params.get('pupil', {})
       pupil = PupilConfig(_toInt(pupilDict.get('color', 0)), _toInt(pupilDict.get('slitRadius', 0)),
@@ -100,7 +103,7 @@ class EyeConfig:
       eyelidDict = params.get('eyelid', {})
       eyelid = EyelidConfig(eyelidDict.get('upperFilename'), eyelidDict.get('lowerFilename'), eyelidDict.get('color', 0))
 
-      return cls(eyeRadius, tracking, backColor, pupil, iris, sclera, eyelid)
+      return cls(eyeRadius, tracking, backColor, squint, pupil, iris, sclera, eyelid)
 
     except Exception as e:
       raise Exception(f'Unable to convert dictionary into an EyeConfig object: {e}\n{params}')

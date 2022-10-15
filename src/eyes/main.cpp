@@ -575,7 +575,7 @@ void frame() {
     uint16_t mapRadius = eyeParams->polar.mapRadius;
     int ix = (int) mapToScreen(mapRadius - eye.x, mapRadius, eyeParams->radius) + screenWidth / 2;
     int iy = (int) mapToScreen(mapRadius - eye.y, mapRadius, eyeParams->radius) + screenWidth / 2;
-    iy -= eyeParams->iris.radius * 0.75f; // TODO - the constant is a 'trackFactor', AKA 'squint' in the M4 config
+    iy -= eyeParams->iris.radius * eyeParams->squint;
     if (eyeIndex & 1) {
       // Flip for right eye
       ix = screenWidth - 1 - ix;

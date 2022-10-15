@@ -113,6 +113,7 @@ struct EyeParams {
   const uint16_t radius{120};     // Eye radius, in pixels
   const uint16_t backColor{};     // 16-bit 565 RGB, big-endian
   const bool tracking{false};     // Whether the eyelids 'track' the pupils or not
+  const float squint{};
   const uint8_t *displacement{};
   const PupilParams pupil{};
   const IrisParams iris{};
