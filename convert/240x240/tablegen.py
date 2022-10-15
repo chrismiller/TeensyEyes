@@ -70,6 +70,11 @@ def outputImage(filename: str, image: Image, name: str) -> None:
         (p[2] >> 3))  # 5/6/5-bit packing
 
 
+def outputSinglePixelImage(color565: int, name: str) -> None:
+  c = (color565 >> 11, (color565 >> 5) & 0b00111111, color565 & 0b00011111)
+  outputImage("Single color", Image.new('RGB', (1, 1), c), name)
+
+
 def outputGreyscale(data, width: int, height: int, name: str) -> None:
   """
   Writes an image file out to a C style array of uint8_t, and also a PNG and raw binary file, in greyscale format
@@ -94,8 +99,7 @@ def outputSclera(arg: int, sclera: ScleraConfig) -> None:
     image = image.convert('RGB')
     outputImage(filename, image, 'sclera')
   else:
-    c = (sclera.color >> 11, (sclera.color >> 5) & 0b00111111, sclera.color & 0b00011111)
-    outputImage("Single color", Image.new('RGB', (1, 1), c), 'sclera')
+    outputSinglePixelImage(sclera.color, 'sclera')
 
 
 def outputIris(arg: int, iris: IrisConfig) -> None:
@@ -114,8 +118,7 @@ def outputIris(arg: int, iris: IrisConfig) -> None:
 
     outputImage(filename, image, 'iris')
   else:
-    c = (iris.color >> 11, (iris.color >> 5) & 0b00111111, iris.color & 0b00011111)
-    outputImage("Single color", Image.new('RGB', (1, 1), c), 'iris')
+    outputSinglePixelImage(iris.color, 'iris')
 
 
 def outputEyelid(arg: int, defaultFilename: str, tableName: str) -> None:
@@ -124,10 +127,14 @@ def outputEyelid(arg: int, defaultFilename: str, tableName: str) -> None:
   """
   filename = getParam(arg, defaultFilename)
 
-  image = Image.open(filename)
-  if (image.size[0] != SCREEN_WIDTH) or (image.size[1] != SCREEN_HEIGHT):
-    sys.stderr.write('{} dimensions must match screen size of {}x{}'.format(filename, SCREEN_WIDTH, SCREEN_HEIGHT))
-    exit(1)
+  if filename is None:
+    # Make an all white image which results in no eyelids
+    image = Image.new('L', (SCREEN_WIDTH, SCREEN_HEIGHT), 0x1)
+  else:
+    image = Image.open(filename)
+    if (image.size[0] != SCREEN_WIDTH) or (image.size[1] != SCREEN_HEIGHT):
+      raise Exception('{} dimensions must match screen size of {}x{}'.format(filename, SCREEN_WIDTH, SCREEN_HEIGHT))
+
   image = image.convert('L')
   pixels = image.load()
 
