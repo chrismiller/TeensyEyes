@@ -70,13 +70,15 @@ struct IrisParams {
   const uint16_t radius{60};  // Iris radius, in pixels
   const Image texture{};
   const uint16_t color{};     // 16-bit 565 RGB, big-endian
-  const float spin{};
+  const uint16_t angle{};
+  const uint16_t spin{};
 };
 
 struct ScleraParams {
   const Image texture{};
   const uint16_t color{};   // 16-bit 565 RGB, big-endian
-  const float spin{};
+  const uint16_t angle{};
+  const uint16_t spin{};
 };
 
 struct EyelidParams {

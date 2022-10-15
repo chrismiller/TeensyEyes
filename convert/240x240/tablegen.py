@@ -335,7 +335,7 @@ def main():
   print('  EyeParams params = {')
   print(f'      {config.radius}, {config.backColor}, {str(config.tracking).lower()}, displacementMap, ')
   print(f'      {{ {config.pupil.color}, {config.pupil.slitRadius}, {config.pupil.min}, {config.pupil.max} }},')
-  print(f'      {{ {config.iris.radius}, {{ iris, irisWidth, irisHeight }}, {config.iris.color}, {config.iris.spin} }},')
+  print(f'      {{ {config.iris.radius}, {{ iris, irisWidth, irisHeight }}, {config.iris.color}, {config.iris.angle}, {config.iris.spin} }},')
   print(f'      {{ {{ sclera, scleraWidth, scleraHeight }}, {config.sclera.color}, {config.sclera.spin} }},')
   print(f'      {{ upper, lower, {config.eyelid.color} }},')
   print(f'      {{ {mapRadius}, polarAngle, polarDist }}')

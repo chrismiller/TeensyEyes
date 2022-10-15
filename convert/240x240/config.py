@@ -21,7 +21,7 @@ class PupilConfig:
 
 
 class IrisConfig:
-  def __init__(self, filename: str = None, color: int = 0, radius: int = 60, spin: float = 0.0):
+  def __init__(self, filename: str = None, color: int = 0, radius: int = 60, angle: int = 0, spin: int = 0):
     """
     Creates an iris configuration instance.
     :param filename: the name of the iris image file, or None to use the iris color property instead.
@@ -36,7 +36,7 @@ class IrisConfig:
 
 
 class ScleraConfig:
-  def __init__(self, filename: str = None, color: int = 0, spin: float = 0):
+  def __init__(self, filename: str = None, color: int = 0, angle: int = 0, spin: int = 0):
     """
     Creates a sclera configuration instance.
     :param filename: the name of the sclera image file, or None to use the color property instead.
@@ -45,6 +45,7 @@ class ScleraConfig:
     """
     self.filename = filename
     self.color = color
+    self.angle = angle
     self.spin = spin
 
 
@@ -89,7 +90,8 @@ class EyeConfig:
 
       irisDict = params.get('iris', {})
       iris = IrisConfig(irisDict.get('filename'), _toInt(irisDict.get('color', 0)),
-                        _toInt(irisDict.get('radius', 60)), float(irisDict.get('spin', 0.0)))
+                        _toInt(irisDict.get('radius', 60)), _toInt(irisDict.get('angle', 0)),
+                        _toInt(irisDict.get('spin', 0)))
 
       scleraDict = params.get('sclera', {})
       sclera = ScleraConfig(scleraDict.get('filename'), _toInt(scleraDict.get('color', 0)),
