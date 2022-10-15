@@ -99,7 +99,7 @@ def outputSclera(arg: int, sclera: ScleraConfig) -> None:
     outputImage(filename, image, 'sclera')
   else:
     c = (sclera.color >> 11, (sclera.color >> 5) & 0b00111111, sclera.color & 0b00011111)
-    outputImage("Single color", Image.new('RGB', (1, 1), c))
+    outputImage("Single color", Image.new('RGB', (1, 1), c), 'sclera')
 
 
 def outputIris(arg: int, iris: IrisConfig) -> None:
@@ -119,7 +119,7 @@ def outputIris(arg: int, iris: IrisConfig) -> None:
     outputImage(filename, image, 'iris')
   else:
     c = (iris.color >> 11, (iris.color >> 5) & 0b00111111, iris.color & 0b00011111)
-    outputImage("Single color", Image.new('RGB', (1, 1), c))
+    outputImage("Single color", Image.new('RGB', (1, 1), c), 'iris')
 
 
 def outputEyelid(arg: int, defaultFilename: str, tableName: str) -> None:
@@ -322,12 +322,12 @@ def main():
 
   """
   EyeParams e = {
-      radius, backColor, tracking,
+      radius, backColor, tracking, squint, displacementMap,
       {color, slitRadius, min, max},
       {irisRadius, {irisTexture, irisWidth, irisHeight}, irisColor, irisSpin},
       {{scleraTexture, scleraWidth, scleraHeight}, scleraColor, scleraSpin},
       {upper, lower, color},
-      {mapRadius, polarAngle, polarDist, displacementMap}
+      {mapRadius, polarAngle, polarDist}
   };
 """
 
