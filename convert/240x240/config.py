@@ -68,8 +68,9 @@ class EyeConfig:
   A class that holds the configuration for a single eye.
   """
 
-  def __init__(self, radius: int, tracking: bool, backColor: int, squint: float, pupil: PupilConfig,
-               iris: IrisConfig, sclera: ScleraConfig, eyelid: EyelidConfig):
+  def __init__(self, name: str, radius: int, tracking: bool, backColor: int, squint: float,
+               pupil: PupilConfig, iris: IrisConfig, sclera: ScleraConfig, eyelid: EyelidConfig):
+    self.name = name
     self.radius = radius
     self.tracking = tracking
     self.backColor = backColor
@@ -82,6 +83,7 @@ class EyeConfig:
   @classmethod
   def fromDict(cls, params: dict):
     try:
+      name = params.get('name')
       eyeRadius = _toInt(params.get('radius', 120))
       tracking = bool(params.get('tracking', True))
       backColor = _toInt(params.get('backColor', 0))
@@ -92,18 +94,18 @@ class EyeConfig:
                           float(pupilDict.get('min', 0.0)), float(pupilDict.get('max', 1.0)))
 
       irisDict = params.get('iris', {})
-      iris = IrisConfig(irisDict.get('filename'), _toInt(irisDict.get('color', 0)),
+      iris = IrisConfig(irisDict.get('texture'), _toInt(irisDict.get('color', 0)),
                         _toInt(irisDict.get('radius', 60)), _toInt(irisDict.get('angle', 0)),
                         _toInt(irisDict.get('spin', 0)))
 
       scleraDict = params.get('sclera', {})
-      sclera = ScleraConfig(scleraDict.get('filename'), _toInt(scleraDict.get('color', 0)),
+      sclera = ScleraConfig(scleraDict.get('texture'), _toInt(scleraDict.get('color', 0)),
                             _toInt(scleraDict.get('spin', 0)))
 
       eyelidDict = params.get('eyelid', {})
       eyelid = EyelidConfig(eyelidDict.get('upperFilename'), eyelidDict.get('lowerFilename'), eyelidDict.get('color', 0))
 
-      return cls(eyeRadius, tracking, backColor, squint, pupil, iris, sclera, eyelid)
+      return cls(name, eyeRadius, tracking, backColor, squint, pupil, iris, sclera, eyelid)
 
     except Exception as e:
       raise Exception(f'Unable to convert dictionary into an EyeConfig object: {e}\n{params}')

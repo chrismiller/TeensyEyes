@@ -1,6 +1,7 @@
 """ Hexadecimal table generator for C/C++ projects """
 
-import sys
+from typing import TextIO
+
 
 class HexTable:
     """
@@ -11,9 +12,10 @@ class HexTable:
     variable type, sign, or platform-specific modifiers like Arduino's PROGMEM.
     """
 
-    def __init__(self, count, columns=16, digits=2, indent=0):
+    def __init__(self, out: TextIO, count, columns=16, digits=2, indent=0):
         """
         Constructor - initializes counters, etc. for the write() function.
+        @param out     The output stream to write to.
         @param count   Expected number of elements in the array to be
                        generated (so the code knows when to stop appending
                        commas to each element and close the array with ' };')
@@ -25,6 +27,7 @@ class HexTable:
         @param indent  The number of spaces to indent the output by. Default
                        is 0.
         """
+        self.out = out         # Output stream to write to
         self.limit = count     # Total number of elements in array
         self.counter = 0       # Current array element number (0 to limit-1)
         self.digits = digits   # Digits per array element (after 0x)
@@ -42,22 +45,22 @@ class HexTable:
                      valid range for the constructor's digits setting.
         """
         if self.counter > 0:
-            sys.stdout.write(',')                # Comma-delimit prior item
+            self.out.write(',')                  # Comma-delimit prior item
             if self.column < (self.columns - 1): # If not last item on line,
-                sys.stdout.write(' ')            # append space after comma
+                self.out.write(' ')              # append space after comma
         self.column += 1                         # Increment column number
         if self.column >= self.columns:          # Max column exceeded?
             if self.counter > 0:                 # Line wrap, indent
-                sys.stdout.write('\n')
-            sys.stdout.write(' ' * (self.indent + 2))
+                self.out.write('\n')
+            self.out.write(' ' * (self.indent + 2))
             self.column = 0                      # Reset column number
-        sys.stdout.write(                        # 0xNN format
+        self.out.write(                          # 0xNN format
             '{0:#0{1}X}'.format(value, self.digits + 2).replace('X', 'x'))
         self.counter += 1                        # Increment item counter
         if self.counter >= self.limit:
-            sys.stdout.write('\n')               # Cap off table
-            sys.stdout.write(' ' * self.indent)
-            sys.stdout.write('};\n\n')
+            self.out.write('\n')                 # Cap off table
+            self.out.write(' ' * self.indent)
+            self.out.write('};\n\n')
 
     def reset(self, count=0):
         """
