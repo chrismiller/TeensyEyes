@@ -43,7 +43,7 @@ typedef struct {        // Struct is defined before including config.h --
   int8_t mosi;         // mosi
   int8_t sck;          // sck pin
   int8_t rst;          // reset pin
-  int8_t wink;         // and wink button (or -1 if none) specified there,
+  int8_t winkPin;         // and wink button (or -1 if none) specified there,
   uint8_t rotation;     // also display rotation.
   uint8_t init_option;  // option for Init
 } eyeInfo_t;
@@ -64,17 +64,42 @@ float irisValue = 0.5f;
 #define NUM_EYES (sizeof eyeInfo / sizeof eyeInfo[0]) // config.h pin list
 
 Eye eyes[NUM_EYES]{};
-uint8_t eyeIndex{}; // eye[] array counter
-
+uint32_t eyeIndex{};
 
 OverallState state{};
 
-const EyeParams *eyeParams = &defaultEye::params;
+  std::array<std::array<EyeDefinition, 2>, 9> eyeDefinitions{{
+    {doomSpiral::left, doomSpiral::right},
+    {bigBlue::eye,     bigBlue::eye},
+    {doomRed::eye,     doomRed::eye},
+    {fish::eye,        fish::eye},
+    {fizzgig::eye,     fizzgig::eye},
+    {hazel::eye,       hazel::eye},
+    {skull::eye,       skull::eye},
+    {snake::eye,       snake::eye},
+    {hypnoRed::eye,    hypnoRed::eye}}
+    // demon::params, doomSpiral::params , toonstripe::params , spikes::params
+};
 
 float mapToScreen(int value, int mapRadius, int eyeRadius) {
-  return sinf((float) value / (float) mapRadius) * M_PI_2 * eyeRadius;
+  return sinf((float) value / (float) mapRadius) * M_PI_2 * (float) eyeRadius;
 }
 
+
+void nextEyeDefinition() {
+  static uint32_t defIndex{};
+  defIndex = (defIndex + 1) % eyeDefinitions.size();
+
+  for (size_t i = 0; i < NUM_EYES; i++) {
+    auto def = &eyeDefinitions[defIndex][i];
+    Eye &eye = eyes[i];
+    eye.definition = def;
+    eye.currentIrisAngle = def->iris.startAngle;
+    eye.currentScleraAngle = def->sclera.startAngle;
+    // Draw the entire eye (including eyelids) on the first frame
+    eye.drawAll = true;
+  };
+}
 
 // INITIALIZATION -- runs once at startup ----------------------------------
 
@@ -93,23 +118,21 @@ void setup(void) {
   digitalWrite(DISPLAY_BACKLIGHT, LOW);
 #endif
 
-
-  // Start with the eyes looking straight ahead
-  state.eyeOldX = state.eyeNewX = state.eyeOldY = state.eyeNewY = eyeParams->polar.mapRadius;
-
   // Initialize eye objects based on eyeInfo list in config.h:
-  for (uint e = 0; e < NUM_EYES; e++) {
+  for (size_t e = 0; e < NUM_EYES; e++) {
     Serial.print("Create display #");
     Serial.println(e);
-    //eye[e].display     = new displayType(&TFT_SPI, eyeInfo[e].cs,
-    //                       DISPLAY_DC, -1);
+    Eye &eye = eyes[e];
+    //eye.display = new displayType(&TFT_SPI, eyeInfo[e].cs, DISPLAY_DC, -1);
     //for SPI
     //(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCLK, TFT_RST);
-    eyes[e].display = new Display(eyeInfo[e].cs, eyeInfo[e].dc, eyeInfo[e].rst,
-                                  eyeInfo[e].mosi, eyeInfo[e].sck);
-    eyes[e].blink.state = BlinkState::NotBlinking;
-    eyes[e].x = state.eyeOldX;
-    eyes[e].y = state.eyeOldY;
+    eye.display = new Display(eyeInfo[e].cs, eyeInfo[e].dc, eyeInfo[e].rst,
+                              eyeInfo[e].mosi, eyeInfo[e].sck);
+    eye.definition = &eyeDefinitions[0][e];
+    eye.blink.state = BlinkState::NotBlinking;
+    eye.x = eye.definition->polar.mapRadius;
+    eye.y = eye.definition->polar.mapRadius;
+    eye.drawAll = true;
 
     // If project involves only ONE eye and NO other SPI devices, its
     // select line can be permanently tied to GND and corresponding pin
@@ -118,9 +141,13 @@ void setup(void) {
       pinMode(eyeInfo[e].cs, OUTPUT);
       digitalWrite(eyeInfo[e].cs, HIGH); // Deselect them all
     }
-    // Also set up an individual eye-wink pin if defined:
-    if (eyeInfo[e].wink >= 0) pinMode(eyeInfo[e].wink, INPUT_PULLUP);
+    // Set up an individual eye-wink pin if one is defined:
+    if (eyeInfo[e].winkPin >= 0) pinMode(eyeInfo[e].winkPin, INPUT_PULLUP);
   }
+
+  // Start with the eyes looking straight ahead
+  state.eyeOldX = state.eyeNewX = state.eyeOldY = state.eyeNewY = eyes[0].definition->polar.mapRadius;
+
 #if defined(BLINK_PIN) && (BLINK_PIN >= 0)
   pinMode(BLINK_PIN, INPUT_PULLUP); // Ditto for all-eyes blink pin
 #endif
@@ -140,7 +167,7 @@ void setup(void) {
 #endif
 
   // After all-displays reset, now call init/begin func for each display:
-  for (uint e = 0; e < NUM_EYES; e++) {
+  for (size_t e = 0; e < NUM_EYES; e++) {
     eyes[e].display->begin();
     Serial.print("Init ST77xx display #");
     Serial.println(e);
@@ -218,39 +245,6 @@ void setup(void) {
   }
 }
 
-
-inline uint8_t upperThreshold(uint8_t x, uint8_t y) {
-  const uint8_t start = eyeParams->eyelids.upperOpen(x);
-  const uint8_t end = eyeParams->eyelids.upperClosed(x);
-  return y <= start ? 0 : y >= end ? 255 : (y - start) * 256 / (end - start);
-}
-
-inline uint8_t lowerThreshold(uint8_t x, uint8_t y) {
-  const uint8_t start = eyeParams->eyelids.lowerOpen(x);
-  const uint8_t end = eyeParams->eyelids.lowerClosed(x);
-  return y <= start ? 255 : y >= end ? 0 : (end - y) * 256 / (end - start);
-}
-
-/// Compute the Y coordinate of the upper eyelid at a given X coordinate.
-/// \param x the X location in pixels.
-/// \param proportion the proportion the eyelid is open. 0 = fully closed, 1 = fully open.
-/// \return  the Y coordinate in pixels of the edge of the top eyelid.
-inline uint8_t upperLid(uint8_t x, float proportion) {
-  const uint8_t start = eyeParams->eyelids.upperOpen(x);
-  const uint8_t end = eyeParams->eyelids.upperClosed(x);
-  return end - proportion * (end - start);
-}
-
-/// Compute the Y coordinate of the lower eyelid at a given X coordinate.
-/// \param x the X location in pixels.
-/// \param proportion the proportion the eyelid is open. 0 = fully closed, 1 = fully open.
-/// \return  the Y coordinate in pixels of the edge of the bottom eyelid.
-inline uint8_t lowerLid(uint8_t x, float proportion) {
-  const uint8_t start = eyeParams->eyelids.lowerClosed(x);
-  const uint8_t end = eyeParams->eyelids.lowerOpen(x);
-  return start + proportion * (end - start);
-}
-
 // EYE-RENDERING FUNCTION --------------------------------------------------
 
 SPISettings settings(SPI_FREQ, MSBFIRST, SPI_MODE0);
@@ -261,10 +255,10 @@ void drawEye(
     float upperFactor,      // How open the upper eyelid is. 0 = fully closed, 1 = fully open
     float lowerFactor,      // How open the lower eyelid is. 0 = fully closed, 1 = fully open
     float blinkFactor       // How much the eye is blinking. 0 = not blinking, 1 = fully blinking (closed)
-    ) {
+) {
 
   const uint8_t displacementMapSize = screenWidth / 2;
-  const uint16_t mapRadius = eyeParams->polar.mapRadius;
+  const uint16_t mapRadius = eye.definition->polar.mapRadius;
 
   Display &display = *eye.display;
   EyeBlink &blink = eye.blink;
@@ -272,7 +266,7 @@ void drawEye(
   const int xPositionOverMap = eye.x - screenWidth / 2;
   const int yPositionOverMap = eye.y - screenHeight / 2;
 
-  const int iPupilFactor = (int) ((float) eyeParams->iris.texture.height * 256 * (1.0 / irisValue));
+  const int iPupilFactor = (int) ((float) eye.definition->iris.texture.height * 256 * (1.0 / irisValue));
 
   // Dampen the eyelid movement a bit
   upperFactor = eye.upperLidFactor * 0.7f + upperFactor * 0.3f;
@@ -292,12 +286,22 @@ void drawEye(
   for (uint16_t screenX = 0; screenX < screenWidth; screenX++) {
     // Determine the extents of the eye that need to be drawn, based on where the eyelids
     // are located in both this and the previous frame
-    auto currentUpper = upperLid(screenX, upperF);
-    auto previousUpper = upperLid(screenX, prevUpperF);
-    auto minY = min(currentUpper, previousUpper);
-    auto currentLower = lowerLid(screenX, lowerF);
-    auto previousLower = lowerLid(screenX, prevLowerF);
-    auto maxY = max(currentLower, previousLower);
+    auto currentUpper = eye.definition->eyelids.upperLid(screenX, upperF);
+    auto currentLower = eye.definition->eyelids.lowerLid(screenX, lowerF);
+
+    uint8_t minY, maxY;
+    if (eye.drawAll) {
+      minY = 0;
+      maxY = screenHeight;
+    } else {
+      auto previousUpper = eye.definition->eyelids.upperLid(screenX, prevUpperF);
+      minY = min(currentUpper, previousUpper);
+      auto previousLower = eye.definition->eyelids.lowerLid(screenX, prevLowerF);
+      maxY = max(currentLower, previousLower);
+    }
+
+    bool hasScleraTexture = eye.definition->sclera.hasTexture();
+    bool hasIrisTexture = eye.definition->iris.hasTexture();
 
     // Figure out where we are in the displacement map. The eye (sphere) is symmetrical over
     // X and Y, so we can just swap axes to look up the Y displacement using the same table.
@@ -306,13 +310,13 @@ void drawEye(
     int doff; // Offset into displacement arrays
     if (screenX < (screenWidth / 2)) {
       // Left half of screen, so we need to horizontally flip our displacement map lookup
-      displaceX = &eyeParams->displacement[displacementMapSize - 1 - screenX];
-      displaceY = &eyeParams->displacement[(displacementMapSize - 1 - screenX) * displacementMapSize];
+      displaceX = &eye.definition->displacement[displacementMapSize - 1 - screenX];
+      displaceY = &eye.definition->displacement[(displacementMapSize - 1 - screenX) * displacementMapSize];
       xmul = -1; // X displacement is always negative
     } else {
       // Right half of screen, so we can lookup horizontally as-is
-      displaceX = &eyeParams->displacement[screenX - displacementMapSize];
-      displaceY = &eyeParams->displacement[(screenX - displacementMapSize) * displacementMapSize];
+      displaceX = &eye.definition->displacement[screenX - displacementMapSize];
+      displaceY = &eye.definition->displacement[(screenX - displacementMapSize) * displacementMapSize];
       xmul = 1; // X displacement is always positive
     }
 
@@ -322,7 +326,7 @@ void drawEye(
 
       if (screenY < currentUpper || screenY >= currentLower) {
         // We're in the eyelid
-        p = eyeParams->eyelids.color;
+        p = eye.definition->eyelids.color;
       } else {
         const int yy = yPositionOverMap + screenY;
         int dx, dy;
@@ -352,13 +356,13 @@ void drawEye(
                 // Quadrant 1 (bottom right), so we can use the angle/dist lookups directly
                 mx -= mapRadius;
                 moff = my * mapRadius + mx;
-                angle = eyeParams->polar.angle[moff];
-                distance = eyeParams->polar.distance[moff];
+                angle = eye.definition->polar.angle[moff];
+                distance = eye.definition->polar.distance[moff];
               } else {
                 // Quadrant 2 (bottom left), so rotate angle by 270 degrees clockwise (768) and mirror distance on X axis
                 mx = mapRadius - mx - 1;
-                angle = eyeParams->polar.angle[mx * mapRadius + my] + 768;
-                distance = eyeParams->polar.distance[my * mapRadius + mx];
+                angle = eye.definition->polar.angle[mx * mapRadius + my] + 768;
+                distance = eye.definition->polar.distance[my * mapRadius + mx];
               }
             } else {
               if (mx < mapRadius) {
@@ -366,52 +370,62 @@ void drawEye(
                 mx = mapRadius - mx - 1;
                 my = mapRadius - my - 1;
                 moff = my * mapRadius + mx;
-                angle = eyeParams->polar.angle[moff] + 512;
-                distance = eyeParams->polar.distance[moff];
+                angle = eye.definition->polar.angle[moff] + 512;
+                distance = eye.definition->polar.distance[moff];
               } else {
                 // Quadrant 4 (top right), so rotate angle by 90 degrees clockwise (256) and mirror distance on Y axis
                 mx -= mapRadius;
                 my = mapRadius - my - 1;
-                angle = eyeParams->polar.angle[mx * mapRadius + my] + 256;
-                distance = eyeParams->polar.distance[my * mapRadius + mx];
+                angle = eye.definition->polar.angle[mx * mapRadius + my] + 256;
+                distance = eye.definition->polar.distance[my * mapRadius + mx];
               }
             }
 
             // Convert the polar angle/distance to text map coordinates
             if (distance < 128) {
               // We're in the sclera
-              // angle = ((angle + currentEye.sclera.angle) & 1023) ^ currentEye.sclera.mirror;
-              int tx = (angle & 1023) * eyeParams->sclera.texture.width / 1024; // Texture map x/y
-              int ty = distance * eyeParams->sclera.texture.height / 128;
-              p = eyeParams->sclera.texture.get(tx, ty);
+              if (hasScleraTexture) {
+                angle = ((angle + eye.currentScleraAngle) & 1023) ^ eye.definition->sclera.mirror;
+                const int tx = (angle & 1023) * eye.definition->sclera.texture.width / 1024; // Texture map x/y
+                const int ty = distance * eye.definition->sclera.texture.height / 128;
+                p = eye.definition->sclera.texture.get(tx, ty);
+              } else {
+                p = eye.definition->sclera.color;
+              }
             } else if (distance < 255) {
               // Either the iris or pupil
               const int ty = (distance - 128) * iPupilFactor / 32768;
-              if (ty >= eyeParams->iris.texture.height) {
+              if (ty >= eye.definition->iris.texture.height) {
                 // Pupil
-                p = eyeParams->pupil.color;
+                p = eye.definition->pupil.color;
               } else {
                 // Iris
-                // angle = ((angle + eyes[eyeIndex].iris.angle) & 1023) ^ eyes[eyeIndex].iris.mirror;
-                int tx = (angle & 1023) * eyeParams->iris.texture.width / 1024;
-                p = eyeParams->iris.texture.get(tx, ty);
+                if (hasIrisTexture) {
+                  angle = ((angle + eye.currentIrisAngle) & 1023) ^ eye.definition->iris.mirror;
+                  const int tx = (angle & 1023) * eye.definition->iris.texture.width / 1024;
+                  p = eye.definition->iris.texture.get(tx, ty);
+                } else {
+                  p = eye.definition->iris.color;
+                }
               }
             } else {
               // Back of eye
-              p = eyeParams->backColor;
+              p = eye.definition->backColor;
             }
           } else {
             // We're outside the polar map so just use the back-of-eye color
-            p = eyeParams->backColor;
+            p = eye.definition->backColor;
           }
         } else {
           // We're outside the eye area, i.e. this must be on an eyelid
-          p = eyeParams->eyelids.color;
+          p = eye.definition->eyelids.color;
         }
       }
       display.drawPixel(screenX, screenY, p);
     } // end column
   } // end scanline
+
+  eye.drawAll = false;
 
 #ifdef DEBUG_ST7789
   display.setCursor(0, 0);
@@ -467,16 +481,73 @@ void drawEye(
 #endif
 }
 
-// EYE ANIMATION -----------------------------------------------------------
+float handleBlinking(EyeBlink &blink) {
+  const uint32_t t = micros();
+  if (autoBlink && (t - state.timeOfLastBlink) >= state.timeToNextBlink) {
+    // Start a new blink. Blink start times and durations are random (within ranges).
+    state.timeOfLastBlink = t;
+    const uint32_t blinkDuration = random(36000, 72000); // ~1/28 - ~1/14 sec
+    // Set up durations for all eyes (if not already winking)
+    for (auto &e: eyes) {
+      if (e.blink.state == BlinkState::NotBlinking) {
+        e.blink.state = BlinkState::BlinkClosing;
+        e.blink.startTime = t;
+        e.blink.duration = blinkDuration;
+      }
+    }
+    state.timeToNextBlink = blinkDuration * 3 + random(4000000);
+  }
+
+  float blinkFactor{};
+  if (blink.state != BlinkState::NotBlinking) {
+    // The eye is currently blinking. We scale the upper/lower thresholds relative
+    // to the blink position, so that blinks work together with pupil tracking.
+    if (t - blink.startTime >= blink.duration) {
+      // Advance to the next blink state
+      switch (blink.state) {
+        case BlinkState::BlinkClosing:
+          blink.state = BlinkState::BlinkOpening;
+          blink.duration *= 2; // Open the eyelids at half the speed they closed at
+          blink.startTime = t;
+          blinkFactor = 1.0f;
+          break;
+        case BlinkState::BlinkOpening:
+          blink.state = BlinkState::NotBlinking;
+          blinkFactor = 0.0f;
+          break;
+        default:
+          // This should never happen
+          break;
+      }
+    } else {
+      blinkFactor = (float) (t - blink.startTime) / (float) blink.duration;
+      if (blink.state == BlinkState::BlinkOpening) {
+        blinkFactor = 1.0f - blinkFactor;
+      }
+    }
+  }
+  return blinkFactor;
+}
+
+void applySpin(Eye &eye) {
+  const float minutes = (float) millis() / 60000.0f;
+  if (eye.definition->iris.iSpin) {
+    // Spin works in fixed amount per frame (eyes may lose sync, but "wagon wheel" tricks work)
+    eye.currentIrisAngle += eye.definition->iris.iSpin;
+  } else {
+    // Keep consistent timing in spin animation (eyes stay in sync, no "wagon wheel" effects)
+    eye.currentIrisAngle = lroundf((float) eye.definition->iris.startAngle + eye.definition->iris.spin * minutes);
+  }
+
+  if (eye.definition->sclera.iSpin) {
+    eye.currentScleraAngle += eye.definition->sclera.iSpin;
+  } else {
+    eye.currentScleraAngle = lroundf((float) eye.definition->sclera.startAngle + eye.definition->sclera.spin * minutes);
+  }
+}
 
 // Process motion for a single frame of left or right eye
-void frame() {
-  if (++eyeIndex >= NUM_EYES) {
-    // Cycle through eyes, 1 per call
-    eyeIndex = 0;
-  }
-  Eye &eye = eyes[eyeIndex];
-
+void frame(Eye &eye) {
 #if defined(USE_ASYNC_UPDATES)
   elapsedMillis emWait = 0;
   while (eye.display->asyncUpdateActive() && (emWait < 1000));
@@ -527,7 +598,7 @@ void frame() {
         // It's time to begin a new move
         if ((t - state.lastSaccadeStop) > state.saccadeInterval) {
           // It's time for a 'big' saccade. r is the radius in X and Y that the eye can go, from (0,0) in the center.
-          float r = ((float) eyeParams->polar.mapRadius * 2 - (float) screenWidth * M_PI_2) * 0.75f;
+          float r = ((float) eye.definition->polar.mapRadius * 2 - (float) screenWidth * M_PI_2) * 0.75f;
           state.eyeNewX = random(-r, r);
           float moveDist = sqrt(r * r - state.eyeNewX * state.eyeNewX);
           state.eyeNewY = random(-moveDist, moveDist);
@@ -539,16 +610,16 @@ void frame() {
           // r is possible radius of motion, ~1/10 size of full saccade.
           // We don't bother with clipping because if it strays just a little,
           // that's okay, it'll get put in-bounds on next full saccade.
-          float r = (float) eyeParams->polar.mapRadius * 2 - (float) screenWidth * M_PI_2;
+          float r = (float) eye.definition->polar.mapRadius * 2 - (float) screenWidth * M_PI_2;
           r *= 0.07f;
           float dx = random(-r, r);
-          state.eyeNewX = eye.x - eyeParams->polar.mapRadius + dx;
+          state.eyeNewX = eye.x - eye.definition->polar.mapRadius + dx;
           float h = sqrt(r * r - dx * dx);
-          state.eyeNewY = eye.y - eyeParams->polar.mapRadius + random(-h, h);
+          state.eyeNewY = eye.y - eye.definition->polar.mapRadius + random(-h, h);
           state.moveDuration = random(7000, 25000); // 7-25 ms microsaccade
         }
-        state.eyeNewX += eyeParams->polar.mapRadius;    // Translate new point into map space
-        state.eyeNewY += eyeParams->polar.mapRadius;
+        state.eyeNewX += eye.definition->polar.mapRadius;    // Translate new point into map space
+        state.eyeNewY += eye.definition->polar.mapRadius;
         state.moveStartTime = t;    // Save initial time of move
         state.inMotion = true; // Start move on next frame
       }
@@ -558,9 +629,9 @@ void frame() {
     int eyeTargetY = 0;
 
     // Allow user code to control eye position (e.g. IR sensor, joystick, etc.)
-    float r = ((float) eyeParams->polar.mapRadius * 2 - (float) screenWidth * M_PI_2) * 0.9;
-    eye.x = eyeParams->polar.mapRadius + eyeTargetX * r;
-    eye.y = eyeParams->polar.mapRadius + eyeTargetY * r;
+    float r = ((float) eye.definition->polar.mapRadius * 2 - (float) screenWidth * M_PI_2) * 0.9;
+    eye.x = eye.definition->polar.mapRadius + eyeTargetX * r;
+    eye.y = eye.definition->polar.mapRadius + eyeTargetY * r;
   }
 
   // Eyes fixate (are slightly crossed)
@@ -569,22 +640,22 @@ void frame() {
   eye.x = (eyeIndex & 1) ? eye.x + state.fixate : eye.x - state.fixate;
 
   float upperQ, lowerQ;
-  if (eyeParams->tracking) {
+  if (eye.definition->tracking) {
     // Eyelids are set to naturally "track" the pupils (move up or down automatically).
     // Find the pupil position on screen
-    uint16_t mapRadius = eyeParams->polar.mapRadius;
-    int ix = (int) mapToScreen(mapRadius - eye.x, mapRadius, eyeParams->radius) + screenWidth / 2;
-    int iy = (int) mapToScreen(mapRadius - eye.y, mapRadius, eyeParams->radius) + screenWidth / 2;
-    iy -= eyeParams->iris.radius * eyeParams->squint;
+    uint16_t mapRadius = eye.definition->polar.mapRadius;
+    int ix = (int) mapToScreen(mapRadius - eye.x, mapRadius, eye.definition->radius) + screenWidth / 2;
+    int iy = (int) mapToScreen(mapRadius - eye.y, mapRadius, eye.definition->radius) + screenWidth / 2;
+    iy -= eye.definition->iris.radius * eye.definition->squint;
     if (eyeIndex & 1) {
       // Flip for right eye
       ix = screenWidth - 1 - ix;
     }
-    uint8_t upperOpen = eyeParams->eyelids.upperOpen(ix);
+    uint8_t upperOpen = eye.definition->eyelids.upperOpen(ix);
     if (iy <= upperOpen) {
       upperQ = 1.0f;
     } else {
-      uint8_t upperClosed = eyeParams->eyelids.upperClosed(ix);
+      uint8_t upperClosed = eye.definition->eyelids.upperClosed(ix);
       if (iy >= upperClosed) {
         upperQ = 0.0f;
       } else {
@@ -598,65 +669,31 @@ void frame() {
     lowerQ = 1.0f;
   }
 
-  // Handle blinking
-  if (autoBlink) {
-    // Similar to the autonomous eye movement above -- blink start times
-    // and durations are random (within ranges).
-    if ((t - state.timeOfLastBlink) >= state.timeToNextBlink) {
-      // Start a new blink
-      state.timeOfLastBlink = t;
-      const uint32_t blinkDuration = random(36000, 72000); // ~1/28 - ~1/14 sec
-      // Set up durations for both eyes (if not already winking)
-      for (auto &eye: eyes) {
-        if (eye.blink.state == BlinkState::NotBlinking) {
-          eye.blink.state = BlinkState::BlinkClosing;
-          eye.blink.startTime = t;
-          eye.blink.duration = blinkDuration;
-        }
-      }
-      state.timeToNextBlink = blinkDuration * 3 + random(4000000);
-    }
-  }
-
-  auto &blink = eye.blink;
-  float blinkFactor{};
-  if (blink.state != BlinkState::NotBlinking) {
-    // The eye is currently blinking. We scale the upper/lower thresholds relative
-    // to the blink position, so that blinks work together with pupil tracking.
-    if (t - blink.startTime >= blink.duration) {
-      // Advance to the next blink state
-      switch (blink.state) {
-        case BlinkState::BlinkClosing:
-          blink.state = BlinkState::BlinkOpening;
-          blink.duration *= 2; // Open the eyelids at half the speed they closed at
-          blink.startTime = t;
-          blinkFactor = 1.0f;
-          break;
-        case BlinkState::BlinkOpening:
-          blink.state = BlinkState::NotBlinking;
-          blinkFactor = 0.0f;
-          break;
-        default:
-          // This should never happen
-          break;
-      }
-    } else {
-      blinkFactor = (float) (t - blink.startTime) / (float) blink.duration;
-      if (blink.state == BlinkState::BlinkOpening) {
-        blinkFactor = 1.0f - blinkFactor;
-      }
-    }
-  }
+  float blinkFactor = handleBlinking(eye.blink);
+  applySpin(eye);
 
   // Draw the eye. We temporarily flip the X value if this is the right eye, since it is mirrored
-  if (eyeIndex == 0) eye.x = eyeParams->polar.mapRadius * 2 - eye.x;
+  if (eyeIndex == 0) eye.x = eye.definition->polar.mapRadius * 2 - eye.x;
   drawEye(eye, upperQ, lowerQ, blinkFactor);
-  if (eyeIndex == 0) eye.x = eyeParams->polar.mapRadius * 2 - eye.x;
+  if (eyeIndex == 0) eye.x = eye.definition->polar.mapRadius * 2 - eye.x;
 }
 
 // MAIN LOOP -- runs continuously after setup() ----------------------------
 
 void loop() {
+  // Cycle through the eyes (displays), 1 per call
+  if (++eyeIndex >= NUM_EYES) {
+    eyeIndex = 0;
+  }
+  Eye &eye = eyes[eyeIndex];
+
+  // Switch eyes periodically
+  static elapsedMillis eyeTime{};
+  if (eyeTime > 2000) {
+    nextEyeDefinition();
+    eyeTime = 0;
+  }
+
   if (autoPupilResize) {
     // Not light responsive. Use autonomous iris w/fractal subdivision
     float n, sum = 0.5f;
@@ -676,8 +713,8 @@ void loop() {
       sum += n / (float) iexp;
     }
 
-    const float irisMin = 1.0f - eyeParams->pupil.max;
-    const float irisRange = eyeParams->pupil.max - eyeParams->pupil.min;
+    const float irisMin = 1.0f - eye.definition->pupil.max;
+    const float irisRange = eye.definition->pupil.max - eye.definition->pupil.min;
     irisValue = irisMin + sum * irisRange;
 
     if ((++iris_frame) >= (1 << IRIS_LEVELS)) {
@@ -686,8 +723,8 @@ void loop() {
   } else if (lightSensorPin >= 0) {
     // TODO: implement me!
   }
-
-  frame();
+  
+  frame(eye);
 }
 
 // from the linker
