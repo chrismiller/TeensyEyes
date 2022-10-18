@@ -32,7 +32,7 @@ import json
 import math
 import os
 import sys
-from typing import TextIO
+from typing import TextIO, List
 
 import numpy as np
 from PIL import Image
@@ -55,24 +55,68 @@ def getParam(index: int, default: str) -> str:
   except IndexError:
     return default
 
+def checkParamAbsent(params: dict, key: str) -> None:
+  parents = key.split(':')
+  key = parents.pop()
+  node = params
+  for p in parents:
+    node = params.get(p, None)
+  if node is not None and node.get('key') is not None:
+    raise Exception(f'Invalid configuration: {key} cannot be specified for a single eye')
 
-def loadEyeConfig(filename: str) -> EyeConfig:
+def validateSingleEyeParams(params: dict) -> None:
+  checkParamAbsent(params, 'radius')
+  checkParamAbsent(params, 'pupil:slitRadius')
+  checkParamAbsent(params, 'pupil:slitRadius')
+  checkParamAbsent(params, 'iris:radius')
+
+def loadEyeConfig(filename: str) -> List[EyeConfig]:
   try:
     f = open(filename)
-    return EyeConfig.fromDict(json.load(f))
+    params = json.load(f)
+
+    # Use the current directory name for the name if none was specified in the config file
+    if params.get('name') is None:
+      params['name'] = os.path.basename(os.getcwd()).replace(" ", "")
+
+    # TODO - add support for an arbitrary number of named eyes
+    leftConfig = params.pop('left', {})
+    rightConfig = params.pop('right', {})
+
+    result = []
+    if leftConfig or rightConfig:
+      validateSingleEyeParams(leftConfig)
+      leftParams = params | leftConfig
+      leftParams['name'] = params['name'] + '.left'
+      result.append(EyeConfig.fromDict(leftParams))
+
+      validateSingleEyeParams(rightConfig)
+      rightParams = params | rightConfig
+      rightParams['name'] = params['name'] + '.right'
+      result.append(EyeConfig.fromDict(rightParams))
+    else:
+      params['name'] = params['name'] + '.eye'
+      result.append(EyeConfig.fromDict(params))
+
+    return result
+
   except Exception as e:
-    sys.stderr.write(f'Could not read configuration file {filename}: {e}')
-    exit(1)
+    raise Exception(f'Could not read configuration file {filename}: {e}')
 
 
-def outputImage(out: TextIO, sourceFile: str, image: Image, name: str) -> None:
+def outputImageFile(out: TextIO, filename: str, name: str, maxWidth: int, maxHeight: int) -> None:
   """
-  Writes an image file out to a C style array of uint16_t in 565 RGB format
+  Load an image from disk and output it to a C style array of uint16_t in 565 RGB format
   """
+  image = Image.open(filename)
+  image = image.convert('RGB')
   width = image.size[0]
   height = image.size[1]
 
-  out.write(f'  // {sourceFile} - {width}x{height}, 16 bit 565 RGB\n')
+  if width > maxWidth or height > maxHeight:
+    raise Exception(f'Texture is {width}x{height} - it must not exceed {maxWidth} pixels wide or {maxHeight} pixels tall')
+
+  out.write(f'  // {filename} - {width}x{height}, 16 bit 565 RGB\n')
   out.write(f'  constexpr uint16_t {name}Width = {width};\n')
   out.write(f'  constexpr uint16_t {name}Height = {height};\n')
   out.write(f'  const uint16_t {name}[{name}Width * {name}Height] PROGMEM = {{\n')
@@ -87,11 +131,6 @@ def outputImage(out: TextIO, sourceFile: str, image: Image, name: str) -> None:
         ((p[0] & 0b11111000) << 8) |  # Convert 24-bit RGB
         ((p[1] & 0b11111100) << 3) |  # to 16-bit value with
         (p[2] >> 3))  # 5/6/5-bit packing
-
-
-def outputSinglePixelImage(out: TextIO, color565: int, name: str) -> None:
-  c = (color565 >> 11, (color565 >> 5) & 0b00111111, color565 & 0b00011111)
-  outputImage(out, 'Single color', Image.new('RGB', (1, 1), c), name)
 
 
 def outputGreyscale(out: TextIO, data, width: int, height: int, name: str) -> None:
@@ -122,57 +161,23 @@ def outputGreyscaleCpp(outputDir: str, name: str, data, width: int, height: int)
     outputGreyscale(cpp, data, width, height, name)
 
 
-def outputSclera(out: TextIO, arg: int, sclera: ScleraConfig) -> None:
-  """
-  Load, validate and output the sclera configuration and texture map
-  """
-  filename = getParam(arg, sclera.filename)
-  if filename is not None:
-    image = Image.open(filename)
-    image = image.convert('RGB')
-    outputImage(out, filename, image, 'sclera')
-  else:
-    outputSinglePixelImage(out, sclera.color, 'sclera')
-
-
-def outputIris(out: TextIO, arg: int, iris: IrisConfig) -> None:
-  """
-  Load, validate and output the iris configuration and texture map
-  """
-  filename = getParam(arg, iris.filename)
-  if filename is not None:
-    image = Image.open(filename)
-    image = image.convert('RGB')
-    width = image.size[0]
-    height = image.size[1]
-
-    if width > 512 or height > 128:
-      raise Exception(f'Iris image is {width}x{height} - it must not exceed 512 pixels wide or 128 pixels tall')
-
-    outputImage(out, filename, image, 'iris')
-  else:
-    outputSinglePixelImage(out, iris.color, 'iris')
-
-
 def outputNoEyelids(out: TextIO) -> None:
   out.write('  // All zeroes, which results in no upper eyelid\n')
-  out.write('  const uint8_t upper[screenWidth * 2] PROGMEM = {\n')
+  out.write('  const uint8_t noUpper[screenWidth * 2] PROGMEM = {\n')
   for i in range(30):
     out.write('   ' + ' 0x00,' * 16 + '\n')
   out.write('  };\n\n')
   out.write('  // All 255, which results in no lower eyelid\n')
-  out.write('  const uint8_t lower[screenWidth * 2] PROGMEM = {\n')
+  out.write('  const uint8_t noLower[screenWidth * 2] PROGMEM = {\n')
   for i in range(30):
     out.write('   ' + ' 0xFF,' * 16 + '\n')
   out.write('  };\n\n')
 
 
-def outputEyelid(out: TextIO, arg: int, defaultFilename: str, tableName: str) -> None:
+def outputEyelid(out: TextIO, filename: str, tableName: str) -> None:
   """
   Load, validate and output an eyelid threshold lookup table
   """
-  filename = getParam(arg, defaultFilename)
-
   image = Image.open(filename)
   if (image.size[0] != SCREEN_WIDTH) or (image.size[1] != SCREEN_HEIGHT):
     raise Exception(f'{filename} dimensions must match screen size of {SCREEN_WIDTH}x{SCREEN_HEIGHT}')
@@ -344,6 +349,45 @@ def outputDisplacement(outputDir: str, name: str, mapRadius: int, eyeRadius: int
   outputGreyscaleCpp(outputDir, name, displacementMap, size, size)
 
 
+def outputConfig(out: TextIO, config: EyeConfig, mapRadius: int, dispMapName: str,
+                 angleMapName: str, distMapName: str, filenameMappings: dict[str, str]) -> None:
+  """
+  Writes out the C++ EyeDefinition
+  EyeDefinition {configName} = {
+      radius, backColor, tracking, squint, dispMapName,
+      {color, slitRadius, min, max},
+      {irisRadius, {irisTexture, irisWidth, irisHeight}, irisColor, irisSpin},
+      {{scleraTexture, scleraWidth, scleraHeight}, scleraColor, scleraSpin},
+      {upper, lower, color},
+      {mapRadius, angleMapName, dispMapName}
+  };
+  """
+
+  configName = config.name.split('.', 1)[-1]
+
+  upper = filenameMappings.get(config.eyelid.upperFilename, 'noUpper')
+  lower = filenameMappings.get(config.eyelid.lowerFilename, 'noLower')
+
+  out.write(f'  const EyeDefinition {configName} PROGMEM = {{\n')
+  out.write(f'      {config.radius}, {config.backColor}, {str(config.tracking).lower()}, {config.squint}, {dispMapName}, \n')
+  out.write(f'      {{ {config.pupil.color}, {config.pupil.slitRadius}, {config.pupil.min}, {config.pupil.max} }},\n')
+  if config.iris.filename is None:
+    irisDef = 'nullptr, 0, 0'
+  else:
+    irisDef = f'{configName}Iris, {configName}IrisWidth, {configName}IrisHeight'
+  mirror = 'true' if config.iris.mirror else 'false'
+  out.write(f'      {{ {config.iris.radius}, {{ {irisDef} }}, {config.iris.color}, {config.iris.angle}, {config.iris.spin}, {mirror} }},\n')
+  if config.sclera.filename is None:
+    scleraDef = 'nullptr, 0, 0'
+  else:
+    scleraDef = f'{configName}Sclera, {configName}ScleraWidth, {configName}ScleraHeight'
+  mirror = 'true' if config.sclera.mirror else 'false'
+  out.write(f'      {{ {{ {scleraDef} }}, {config.sclera.color}, {config.sclera.angle}, {config.sclera.spin}, {mirror} }},\n')
+  out.write(f'      {{ {upper}, {lower}, {config.eyelid.color} }},\n')
+  out.write(f'      {{ {mapRadius}, {angleMapName}, {distMapName} }}\n')
+  out.write('  };\n')
+
+
 def main():
   outputDir = getParam(1, '.')
   if not os.path.exists(outputDir):
@@ -353,28 +397,22 @@ def main():
     sys.stderr.write(f'{outputDir} is not a directory')
     exit(1)
 
-  config = loadEyeConfig(getParam(2, 'config.eye'))
-
-  try:
-    eyeName = sys.argv[3]
-  except IndexError:
-    # No eye name supplied, so use the name from the config if present,
-    # else use the name of the current working directory.
-    eyeName = config.name
-    if eyeName is None:
-      eyeName = os.path.basename(os.getcwd()).replace(" ", "")
+  configFile = getParam(2, 'config.eye')
+  print(f'Loading eye configuration from {configFile}')
+  configs = loadEyeConfig(configFile)
 
   mapRadius = 240
 
-  angleMapName = f'polarAngle_{mapRadius}'
-  distMapName = f'polarDist_{mapRadius}_{config.radius}_{config.iris.radius}_{config.pupil.slitRadius}'
-  outputPolarMaps(outputDir, angleMapName, distMapName, mapRadius, config.radius,
-                  config.iris.radius, config.pupil.slitRadius)
-
-  dispMapName = f'disp_{mapRadius}_{config.radius}'
-  outputDisplacement(outputDir, dispMapName, mapRadius, config.radius)
-
+  eyeName = configs[0].name.split('.', 1)[0]
   outputFilename = f'{outputDir}/{eyeName}.h'
+  angleMapName = f'polarAngle_{mapRadius}'
+  distMapName = f'polarDist_{mapRadius}_{configs[0].radius}_{configs[0].iris.radius}_{configs[0].pupil.slitRadius}'
+  dispMapName = f'disp_{mapRadius}_{configs[0].radius}'
+
+  outputPolarMaps(outputDir, angleMapName, distMapName, mapRadius, configs[0].radius,
+                  configs[0].iris.radius, configs[0].pupil.slitRadius)
+  outputDisplacement(outputDir, dispMapName, mapRadius, configs[0].radius)
+
   print(f'Writing iris/sclera/eyelid data to {outputFilename}')
   with open(outputFilename, 'w') as eyeFile:
     eyeFile.write('#include "../eyes.h"\n')
@@ -382,36 +420,35 @@ def main():
     eyeFile.write(f'#include "{distMapName}.h"\n')
     eyeFile.write(f'#include "{dispMapName}.h"\n\n')
     eyeFile.write(f'namespace {eyeName} {{\n')
-    outputIris(eyeFile, 4, config.iris)
-    outputSclera(eyeFile, 5, config.sclera)
 
-    if config.eyelid.upperFilename is None:
-      with open(f'{outputDir}/noeyelids.h', 'w') as noEyelidsFile:
-        eyeFile.write('#include "noeyelids.h"\n\n')
-        outputNoEyelids(noEyelidsFile)
-    else:
-      outputEyelid(eyeFile, 6, config.eyelid.upperFilename, 'upper')
-      outputEyelid(eyeFile, 7, config.eyelid.lowerFilename, 'lower')
+    filenameMappings = {}
+    for config in configs:
+      configName = config.name.split('.', 1)[-1]
 
-    """
-    EyeParams e = {
-        radius, backColor, tracking, squint, {dispMapName},
-        {color, slitRadius, min, max},
-        {irisRadius, {irisTexture, irisWidth, irisHeight}, irisColor, irisSpin},
-        {{scleraTexture, scleraWidth, scleraHeight}, scleraColor, scleraSpin},
-        {upper, lower, color},
-        {mapRadius, {angleMapName}, {dispMapName}}
-    };
-    """
+      if config.iris.filename is not None and  config.iris.filename not in filenameMappings:
+        irisName = configName + 'Iris'
+        outputImageFile(eyeFile, config.iris.filename, irisName, 512, 128)
+        filenameMappings[config.iris.filename] = irisName
 
-    eyeFile.write('  const EyeParams params = {\n')
-    eyeFile.write(f'      {config.radius}, {config.backColor}, {str(config.tracking).lower()}, {config.squint}, {dispMapName}, \n')
-    eyeFile.write(f'      {{ {config.pupil.color}, {config.pupil.slitRadius}, {config.pupil.min}, {config.pupil.max} }},\n')
-    eyeFile.write(f'      {{ {config.iris.radius}, {{ iris, irisWidth, irisHeight }}, {config.iris.color}, {config.iris.angle}, {config.iris.spin} }},\n')
-    eyeFile.write(f'      {{ {{ sclera, scleraWidth, scleraHeight }}, {config.sclera.color}, {config.sclera.angle}, {config.sclera.spin} }},\n')
-    eyeFile.write(f'      {{ upper, lower, {config.eyelid.color} }},\n')
-    eyeFile.write(f'      {{ {mapRadius}, {angleMapName}, {distMapName} }}\n')
-    eyeFile.write('  };\n')
+      if config.sclera.filename is not None and config.sclera.filename not in filenameMappings:
+          scleraName = configName + 'Sclera'
+          outputImageFile(eyeFile, config.sclera.filename, scleraName, 800, 200)
+          filenameMappings[config.sclera.filename] = scleraName
+
+      if config.eyelid.upperFilename is None:
+        with open(f'{outputDir}/noeyelids.h', 'w') as noEyelidsFile:
+          eyeFile.write('#include "noeyelids.h"\n\n')
+          outputNoEyelids(noEyelidsFile)
+      else:
+        if config.eyelid.upperFilename not in filenameMappings:
+          outputEyelid(eyeFile, config.eyelid.upperFilename, configName + 'Upper')
+          filenameMappings[config.eyelid.upperFilename] = configName + 'Upper'
+        if config.eyelid.lowerFilename not in filenameMappings:
+          outputEyelid(eyeFile, config.eyelid.lowerFilename, configName + 'Lower')
+          filenameMappings[config.eyelid.lowerFilename] = configName + 'Lower'
+
+      outputConfig(eyeFile, config, mapRadius, dispMapName, angleMapName, distMapName, filenameMappings)
+
     eyeFile.write('}\n')  # End of namespace block
 
   print("All done!")

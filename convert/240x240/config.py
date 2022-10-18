@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 def _toInt(value) -> int:
   if isinstance(value, str) and value.startswith(('0x', '0X')):
     return int(value, 16)
@@ -19,35 +21,59 @@ class PupilConfig:
     self.min = _min
     self.max = _max
 
+  @classmethod
+  def fromDict(cls: type[PupilConfig], params: dict[str, object]) -> PupilConfig:
+    """
+    Creates and returns a PupilConfig instance by extracting configuration details from the supplied dictionary.
+    :param params: a dictionary containing details of the eye's configuration.
+    :return:
+    """
+    return cls(_toInt(params.get('color', 0)), _toInt(params.get('slitRadius', 0)),
+               float(params.get('min', 0.0)), float(params.get('max', 1.0)))
+
 
 class IrisConfig:
-  def __init__(self, filename: str = None, color: int = 0, radius: int = 60, angle: int = 0, spin: int = 0):
+  def __init__(self, filename: str = None, color: int = 0, radius: int = 60, angle: int = 0, spin: int = 0, mirror = False):
     """
     Creates an iris configuration instance.
     :param filename: the name of the iris image file, or None to use the iris color property instead.
     :param color: the color of the iris, 1n 16 bit 565 RGB format. This only takes effect when filename is None.
     :param radius: the radius of the iris, in pixels.
     :param spin: the amount of spin to apply to the iris on each frame. Set to zero to disable iris spinning.
+    :param mirror: if true, the sclera will be flipped left to right.
     """
     self.filename = filename
     self.color = color
     self.radius = radius
     self.angle = angle
     self.spin = spin
+    self.mirror = mirror
+
+  @classmethod
+  def fromDict(cls: type[IrisConfig], params: dict[str, object]) -> IrisConfig:
+    return cls(params.get('texture'), _toInt(params.get('color', 0)), _toInt(params.get('radius', 60)),
+               _toInt(params.get('angle', 0)), _toInt(params.get('spin', 0)), bool(params.get('mirror', False)))
 
 
 class ScleraConfig:
-  def __init__(self, filename: str = None, color: int = 0, angle: int = 0, spin: int = 0):
+  def __init__(self, filename: str = None, color: int = 0, angle: int = 0, spin: int = 0, mirror = False):
     """
     Creates a sclera configuration instance.
     :param filename: the name of the sclera image file, or None to use the color property instead.
     :param color: the color of the sclera, in 16 bit 565 RGB format. This only takes effect when filename is None.
     :param spin: the amount of spin to apply to the sclera on each frame. Set to zero to disable sclera spinning.
+    :param mirror: if true, the sclera will be flipped left to right.
     """
     self.filename = filename
     self.color = color
     self.angle = angle
     self.spin = spin
+    self.mirror = mirror
+
+  @classmethod
+  def fromDict(cls: type[ScleraConfig], params: dict[str, object]) -> ScleraConfig:
+    return cls(params.get('texture'), _toInt(params.get('color', 0)), _toInt(params.get('spin', 0)),
+               bool(params.get('mirror', False)))
 
 
 class EyelidConfig:
@@ -61,6 +87,10 @@ class EyelidConfig:
     self.upperFilename = upperFilename
     self.lowerFilename = lowerFilename
     self.color = color
+
+  @classmethod
+  def fromDict(cls: type[EyelidConfig], params: dict[str, object]) -> EyelidConfig:
+    return cls(params.get('upperFilename'), params.get('lowerFilename'), params.get('color', 0))
 
 
 class EyeConfig:
@@ -81,29 +111,30 @@ class EyeConfig:
     self.eyelid = eyelid
 
   @classmethod
-  def fromDict(cls, params: dict):
+  def fromDict(cls: type[EyeConfig], params: dict[str, object]) -> EyeConfig:
+    """
+    Creates and returns an EyeConfig instance by extracting configuration details from the supplied dictionary.
+    :param params: a dictionary containing details of the eye's configuration.
+    :return: An EyeConfig instance.
+    """
     try:
-      name = params.get('name')
+      name = str(params.get('name'))
       eyeRadius = _toInt(params.get('radius', 120))
       tracking = bool(params.get('tracking', True))
       backColor = _toInt(params.get('backColor', 0))
       squint = float(params.get('squint', 0.5))
 
       pupilDict = params.get('pupil', {})
-      pupil = PupilConfig(_toInt(pupilDict.get('color', 0)), _toInt(pupilDict.get('slitRadius', 0)),
-                          float(pupilDict.get('min', 0.0)), float(pupilDict.get('max', 1.0)))
+      pupil = PupilConfig.fromDict(pupilDict)
 
       irisDict = params.get('iris', {})
-      iris = IrisConfig(irisDict.get('texture'), _toInt(irisDict.get('color', 0)),
-                        _toInt(irisDict.get('radius', 60)), _toInt(irisDict.get('angle', 0)),
-                        _toInt(irisDict.get('spin', 0)))
+      iris = IrisConfig.fromDict(irisDict)
 
       scleraDict = params.get('sclera', {})
-      sclera = ScleraConfig(scleraDict.get('texture'), _toInt(scleraDict.get('color', 0)),
-                            _toInt(scleraDict.get('spin', 0)))
+      sclera = ScleraConfig.fromDict(scleraDict)
 
       eyelidDict = params.get('eyelid', {})
-      eyelid = EyelidConfig(eyelidDict.get('upperFilename'), eyelidDict.get('lowerFilename'), eyelidDict.get('color', 0))
+      eyelid = EyelidConfig.fromDict(eyelidDict)
 
       return cls(name, eyeRadius, tracking, backColor, squint, pupil, iris, sclera, eyelid)
 
