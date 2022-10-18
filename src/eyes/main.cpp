@@ -565,7 +565,7 @@ void frame(Eye &eye) {
     // holds there for random period until next motion.
 
     // microseconds elapsed since last eye event
-    int32_t dt = t - state.moveStartTime;
+    uint32_t dt = t - state.moveStartTime;
     if (state.inMotion) {
       // The eye is currently moving
       if (dt >= state.moveDuration) {
