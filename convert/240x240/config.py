@@ -72,8 +72,8 @@ class ScleraConfig:
 
   @classmethod
   def fromDict(cls: type[ScleraConfig], params: dict[str, object]) -> ScleraConfig:
-    return cls(params.get('texture'), _toInt(params.get('color', 0)), _toInt(params.get('spin', 0)),
-               bool(params.get('mirror', False)))
+    return cls(params.get('texture'), _toInt(params.get('color', 0)), _toInt(params.get('angle', 0)),
+               _toInt(params.get('spin', 0)), bool(params.get('mirror', False)))
 
 
 class EyelidConfig:

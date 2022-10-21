@@ -32,7 +32,7 @@ import json
 import math
 import os
 import sys
-from typing import TextIO, List
+from typing import TextIO, List, cast
 
 import numpy as np
 from PIL import Image
@@ -64,6 +64,17 @@ def checkParamAbsent(params: dict, key: str) -> None:
   if node is not None and node.get('key') is not None:
     raise Exception(f'Invalid configuration: {key} cannot be specified for a single eye')
 
+def merge(dest: dict[str, object], source: dict[str, object]):
+  """
+  Merges 'source' over top of 'dest'. Any nested dictionaries are recursively merged.
+  """
+  for k, v in source.items():
+    if isinstance(v, dict):
+      node = cast(dict[str, object], dest.setdefault(k, {}))
+      merge(node, v)
+    else:
+      dest[k] = v
+
 def validateSingleEyeParams(params: dict) -> None:
   checkParamAbsent(params, 'radius')
   checkParamAbsent(params, 'pupil:slitRadius')
@@ -86,12 +97,14 @@ def loadEyeConfig(filename: str) -> List[EyeConfig]:
     result = []
     if leftConfig or rightConfig:
       validateSingleEyeParams(leftConfig)
-      leftParams = params | leftConfig
+      leftParams = params.copy()
+      merge(leftParams, leftConfig)
       leftParams['name'] = params['name'] + '.left'
       result.append(EyeConfig.fromDict(leftParams))
 
       validateSingleEyeParams(rightConfig)
-      rightParams = params | rightConfig
+      rightParams = params.copy()
+      merge(rightParams, rightConfig)
       rightParams['name'] = params['name'] + '.right'
       result.append(EyeConfig.fromDict(rightParams))
     else:
@@ -374,13 +387,15 @@ def outputConfig(out: TextIO, config: EyeConfig, mapRadius: int, dispMapName: st
   if config.iris.filename is None:
     irisDef = 'nullptr, 0, 0'
   else:
-    irisDef = f'{configName}Iris, {configName}IrisWidth, {configName}IrisHeight'
+    prefix = filenameMappings[config.iris.filename]
+    irisDef = f'{prefix}, {prefix}Width, {prefix}Height'
   mirror = 'true' if config.iris.mirror else 'false'
   out.write(f'      {{ {config.iris.radius}, {{ {irisDef} }}, {config.iris.color}, {config.iris.angle}, {config.iris.spin}, {mirror} }},\n')
   if config.sclera.filename is None:
     scleraDef = 'nullptr, 0, 0'
   else:
-    scleraDef = f'{configName}Sclera, {configName}ScleraWidth, {configName}ScleraHeight'
+    prefix = filenameMappings[config.sclera.filename]
+    scleraDef = f'{prefix}, {prefix}Width, {prefix}Height'
   mirror = 'true' if config.sclera.mirror else 'false'
   out.write(f'      {{ {{ {scleraDef} }}, {config.sclera.color}, {config.sclera.angle}, {config.sclera.spin}, {mirror} }},\n')
   out.write(f'      {{ {upper}, {lower}, {config.eyelid.color} }},\n')
@@ -394,7 +409,8 @@ def main():
     sys.stderr.write(f'The path {outputDir} does not exist')
     exit(1)
   if not os.path.isdir(outputDir):
-    sys.stderr.write(f'{outputDir} is not a directory')
+    absolutePath = os.path.abspath(outputDir)
+    sys.stderr.write(f'{outputDir} is not a directory (absolute: {absolutePath})')
     exit(1)
 
   configFile = getParam(2, 'config.eye')
