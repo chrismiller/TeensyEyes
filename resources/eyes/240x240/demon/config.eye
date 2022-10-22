@@ -1,12 +1,4 @@
 {
-  "left" : {
-    "irisSpin"      : -18
-  },
-  "right" : {
-    "irisSpin"      : 18
-  },
-
-
   "name"       : "demon",
   "radius"     : 125,
   "tracking"   : false,
@@ -28,5 +20,15 @@
     "color"           : 0,
     "upperFilename"   : "upper.png",
     "lowerFilename"   : "lower.png"
+  },
+  "left" : {
+    "iris" : {
+      "spin" : -18
+    },
+  },
+  "right" : {
+    "iris" : {
+      "spin" : 18
+    }
   }
 }

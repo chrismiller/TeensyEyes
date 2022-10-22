@@ -1,17 +1,6 @@
 {
-  "left" : {
-    "irisSpin"     : 80
-  },
-  "right" : {
-    "irisMirror"   : true,
-    "irisSpin"     : 70
-  },
-
-
-
   "name"       : "doomSpiral",
   "radius"     : 125,
-  "squint"     : 0.3,
   "backColor"  : "0xF800",
   "pupil" : {
     "color"     : "0xFFF5",
@@ -29,5 +18,16 @@
     "color"           : 0,
     "upperFilename"   : "upper.png",
     "lowerFilename"   : "lower.png"
+  },
+  "left" : {
+    "iris": {
+      "spin": 80
+    }
+  },
+  "right" : {
+    "iris" : {
+      "spin" : 70,
+      "mirror" : true
+    }
   }
 }

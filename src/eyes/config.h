@@ -17,20 +17,19 @@
 
 // Enable the eye(s) you want to #include -- HUGE graphics tables for various eyes:
 #ifdef LARGE_EYES
-#include "eyes/graphics/240x240/defaultEye.h"    // Standard human-ish hazel eye
-#include "eyes/graphics/240x240/animeEye.h"
-#include "eyes/graphics/240x240/demonEye.h"
-#include "eyes/graphics/240x240/hypnoEye.h"
-#include "eyes/graphics/240x240/snakeEye.h"
-//#include "eyes/graphics/240x240/doeEye.h"        // Cartoon deer eye (DISABLE TRACKING)
-//#include "eyes/graphics/240x240/newtEye.h"       // Eye of newt
-//#include "eyes/graphics/240x240/terminatorEye.h" // Git to da choppah!
-
-//#include "eyes/graphics/240x240/catEye.h"        // Cartoonish cat (flat "2D" colors)
-//#include "eyes/graphics/240x240/dragonEye.h"     // Slit pupil fiery dragon/demon eye
-//#include "eyes/graphics/240x240/goatEye.h"       // Horizontal pupil goat/Krampus eye
-//#include "eyes/graphics/240x240/naugaEye.h"      // Nauga googly eye (DISABLE TRACKING)
-//#include "eyes/graphics/240x240/owlEye.h"        // Minerva the owl (DISABLE TRACKING)
+#include "eyes/graphics/240x240/anime.h"
+#include "eyes/graphics/240x240/bigBlue.h"
+//#include "eyes/graphics/240x240/demon.h"
+#include "eyes/graphics/240x240/doomRed.h"
+#include "eyes/graphics/240x240/doomSpiral.h"
+#include "eyes/graphics/240x240/fish.h"
+#include "eyes/graphics/240x240/fizzgig.h"
+#include "eyes/graphics/240x240/hazel.h"        // Standard human-ish hazel eye
+#include "eyes/graphics/240x240/hypnoRed.h"
+#include "eyes/graphics/240x240/skull.h"
+#include "eyes/graphics/240x240/snake.h"
+//#include "eyes/graphics/240x240/spikes.h"
+//#include "eyes/graphics/240x240/toonstripe.h"
 #else
 #include "graphics/128x128/defaultEye.h"      // Standard human-ish hazel eye -OR-
 //#include "graphics/128x128/dragonEye.h"     // Slit pupil fiery dragon/demon eye -OR-

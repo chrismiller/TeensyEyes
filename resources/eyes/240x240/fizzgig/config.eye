@@ -1,6 +1,6 @@
 {
   "name"        : "fizzgig",
-  "radius"      : 128,
+  "radius"      : 130,
   "backColor"   : "0x3923",
   "tracking"    : false,
   "pupil" : {
