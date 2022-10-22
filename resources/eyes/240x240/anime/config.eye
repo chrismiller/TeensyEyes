@@ -12,7 +12,7 @@
     "texture"      : "iris.png",
     "radius"       : 95,
     "angle"        : 0,
-    "spin"         : 512
+    "iSpin"        : 512
   },
   "sclera" : {
     "texture"   : "sclera.png"

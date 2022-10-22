@@ -24,7 +24,7 @@
   "left" : {
     "iris" : {
       "spin" : -18
-    },
+    }
   },
   "right" : {
     "iris" : {

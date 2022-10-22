@@ -68,10 +68,12 @@ uint32_t eyeIndex{};
 
 OverallState state{};
 
+  int EYE_DURATION{4000};
   std::array<std::array<EyeDefinition, 2>, 9> eyeDefinitions{{
     {doomSpiral::left, doomSpiral::right},
     {bigBlue::eye,     bigBlue::eye},
-    {doomRed::eye,     doomRed::eye},
+    {demon::left,     demon::right},
+//    {doomRed::eye,     doomRed::eye},
     {fish::eye,        fish::eye},
     {fizzgig::eye,     fizzgig::eye},
     {hazel::eye,       hazel::eye},
@@ -536,13 +538,83 @@ void applySpin(Eye &eye) {
     eye.currentIrisAngle += eye.definition->iris.iSpin;
   } else {
     // Keep consistent timing in spin animation (eyes stay in sync, no "wagon wheel" effects)
-    eye.currentIrisAngle = lroundf((float) eye.definition->iris.startAngle + eye.definition->iris.spin * minutes);
+    eye.currentIrisAngle = lroundf((float) eye.definition->iris.startAngle + eye.definition->iris.spin * minutes * -1024.0);
   }
 
   if (eye.definition->sclera.iSpin) {
     eye.currentScleraAngle += eye.definition->sclera.iSpin;
   } else {
-    eye.currentScleraAngle = lroundf((float) eye.definition->sclera.startAngle + eye.definition->sclera.spin * minutes);
+    eye.currentScleraAngle = lroundf((float) eye.definition->sclera.startAngle + eye.definition->sclera.spin * minutes * -1024.0);
+  }
+}
+
+/// Apply autonomous X/Y eye motion
+void doAutonomousEyeMovement(Eye &eye) {
+// Periodically initiates motion to a new random point, random speed,
+// holds there for random period until next motion.
+
+  uint32_t t = micros();
+
+  // microseconds elapsed since last eye event
+  uint32_t dt = t - state.moveStartTime;
+
+  if (state.inMotion) {
+    // The eye is currently moving
+    if (dt >= state.moveDuration) {
+      // Time's up, we have reached the destination
+      state.inMotion = false;
+      // The "move" duration temporarily becomes a hold duration...
+      // Normally this is 35 ms to 1 sec, but don't exceed gazeMax setting
+      uint32_t limit = min(1000000u, gazeMax);
+      state.moveDuration = random(35000u, limit);      // Time between micro-saccades
+      if (!state.saccadeInterval) {                    // Cleared when "big" saccade finishes
+        state.lastSaccadeStop = t;                    // Time when saccade stopped
+        state.saccadeInterval = random(state.moveDuration, gazeMax); // Next in 30ms to 3sec
+      }
+      // Similarly, the "move" start time becomes the "stop" starting time...
+      state.moveStartTime = t;               // Save time of event
+      eye.x = state.eyeOldX = state.eyeNewX;           // Save position
+      eye.y = state.eyeOldY = state.eyeNewY;
+    } else { // Move time's not yet fully elapsed -- interpolate position
+      float e = (float) dt / float(state.moveDuration); // 0.0 to 1.0 during move
+      float e2 = e * e;
+      e = e2 * (3 - 2 * e);     // Easing function: 3*e^2-2*e^3, values in range 0.0 to 1.0
+      eye.x = state.eyeOldX + (state.eyeNewX - state.eyeOldX) * e; // Interp X
+      eye.y = state.eyeOldY + (state.eyeNewY - state.eyeOldY) * e; // and Y
+    }
+  } else {
+    // Eye is currently stopped
+    eye.x = state.eyeOldX;
+    eye.y = state.eyeOldY;
+    if (dt > state.moveDuration) {
+      // It's time to begin a new move
+      if ((t - state.lastSaccadeStop) > state.saccadeInterval) {
+        // It's time for a 'big' saccade. r is the radius in X and Y that the eye can go, from (0,0) in the center.
+        float r = ((float) eye.definition->polar.mapRadius * 2 - (float) screenWidth * M_PI_2) * 0.75f;
+        state.eyeNewX = random(-r, r);
+        float moveDist = sqrt(r * r - state.eyeNewX * state.eyeNewX);
+        state.eyeNewY = random(-moveDist, moveDist);
+        // Set the duration for this move, and start it going.
+        state.moveDuration = random(83000, 166000); // ~1/12 - ~1/6 sec
+        state.saccadeInterval = 0; // Calc next interval when this one stops
+      } else {
+        // Microsaccade
+        // r is possible radius of motion, ~1/10 size of full saccade.
+        // We don't bother with clipping because if it strays just a little,
+        // that's okay, it'll get put in-bounds on next full saccade.
+        float r = (float) eye.definition->polar.mapRadius * 2 - (float) screenWidth * M_PI_2;
+        r *= 0.07f;
+        float dx = random(-r, r);
+        state.eyeNewX = eye.x - eye.definition->polar.mapRadius + dx;
+        float h = sqrt(r * r - dx * dx);
+        state.eyeNewY = eye.y - eye.definition->polar.mapRadius + random(-h, h);
+        state.moveDuration = random(7000, 25000); // 7-25 ms microsaccade
+      }
+      state.eyeNewX += eye.definition->polar.mapRadius;    // Translate new point into map space
+      state.eyeNewY += eye.definition->polar.mapRadius;
+      state.moveStartTime = t;    // Save initial time of move
+      state.inMotion = true; // Start move on next frame
+    }
   }
 }
 
@@ -554,76 +626,8 @@ void frame(Eye &eye) {
   if (emWait >= 1000) Serial.println("Long wait");
 #endif
 
-  // Remember the time at start of function
-  uint32_t t = micros();
-
-  // X/Y movement
-
   if (moveEyesRandomly) {
-    // Autonomous X/Y eye motion
-    // Periodically initiates motion to a new random point, random speed,
-    // holds there for random period until next motion.
-
-    // microseconds elapsed since last eye event
-    uint32_t dt = t - state.moveStartTime;
-    if (state.inMotion) {
-      // The eye is currently moving
-      if (dt >= state.moveDuration) {
-        // Time's up, we have reached the destination
-        state.inMotion = false;
-        // The "move" duration temporarily becomes a hold duration...
-        // Normally this is 35 ms to 1 sec, but don't exceed gazeMax setting
-        uint32_t limit = min(1000000u, gazeMax);
-        state.moveDuration = random(35000u, limit);      // Time between micro-saccades
-        if (!state.saccadeInterval) {                    // Cleared when "big" saccade finishes
-          state.lastSaccadeStop = t;                    // Time when saccade stopped
-          state.saccadeInterval = random(state.moveDuration, gazeMax); // Next in 30ms to 3sec
-        }
-        // Similarly, the "move" start time becomes the "stop" starting time...
-        state.moveStartTime = t;               // Save time of event
-        eye.x = state.eyeOldX = state.eyeNewX;           // Save position
-        eye.y = state.eyeOldY = state.eyeNewY;
-      } else { // Move time's not yet fully elapsed -- interpolate position
-        float e = (float) dt / float(state.moveDuration); // 0.0 to 1.0 during move
-        float e2 = e * e;
-        e = e2 * (3 - 2 * e);     // Easing function: 3*e^2-2*e^3, values in range 0.0 to 1.0
-        eye.x = state.eyeOldX + (state.eyeNewX - state.eyeOldX) * e; // Interp X
-        eye.y = state.eyeOldY + (state.eyeNewY - state.eyeOldY) * e; // and Y
-      }
-    } else {
-      // Eye is currently stopped
-      eye.x = state.eyeOldX;
-      eye.y = state.eyeOldY;
-      if (dt > state.moveDuration) {
-        // It's time to begin a new move
-        if ((t - state.lastSaccadeStop) > state.saccadeInterval) {
-          // It's time for a 'big' saccade. r is the radius in X and Y that the eye can go, from (0,0) in the center.
-          float r = ((float) eye.definition->polar.mapRadius * 2 - (float) screenWidth * M_PI_2) * 0.75f;
-          state.eyeNewX = random(-r, r);
-          float moveDist = sqrt(r * r - state.eyeNewX * state.eyeNewX);
-          state.eyeNewY = random(-moveDist, moveDist);
-          // Set the duration for this move, and start it going.
-          state.moveDuration = random(83000, 166000); // ~1/12 - ~1/6 sec
-          state.saccadeInterval = 0; // Calc next interval when this one stops
-        } else {
-          // Microsaccade
-          // r is possible radius of motion, ~1/10 size of full saccade.
-          // We don't bother with clipping because if it strays just a little,
-          // that's okay, it'll get put in-bounds on next full saccade.
-          float r = (float) eye.definition->polar.mapRadius * 2 - (float) screenWidth * M_PI_2;
-          r *= 0.07f;
-          float dx = random(-r, r);
-          state.eyeNewX = eye.x - eye.definition->polar.mapRadius + dx;
-          float h = sqrt(r * r - dx * dx);
-          state.eyeNewY = eye.y - eye.definition->polar.mapRadius + random(-h, h);
-          state.moveDuration = random(7000, 25000); // 7-25 ms microsaccade
-        }
-        state.eyeNewX += eye.definition->polar.mapRadius;    // Translate new point into map space
-        state.eyeNewY += eye.definition->polar.mapRadius;
-        state.moveStartTime = t;    // Save initial time of move
-        state.inMotion = true; // Start move on next frame
-      }
-    }
+    doAutonomousEyeMovement(eye);
   } else {
     int eyeTargetX = 0;
     int eyeTargetY = 0;
@@ -689,7 +693,7 @@ void loop() {
 
   // Switch eyes periodically
   static elapsedMillis eyeTime{};
-  if (eyeTime > 2000) {
+  if (eyeTime > EYE_DURATION) {
     nextEyeDefinition();
     eyeTime = 0;
   }
