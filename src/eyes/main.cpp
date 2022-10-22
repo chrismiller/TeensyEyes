@@ -87,7 +87,7 @@ float mapToScreen(int value, int mapRadius, int eyeRadius) {
 
 
 void nextEyeDefinition() {
-  static uint32_t defIndex{};
+  static uint32_t defIndex = eyeDefinitions.size() - 1;
   defIndex = (defIndex + 1) % eyeDefinitions.size();
 
   for (size_t i = 0; i < NUM_EYES; i++) {
@@ -381,7 +381,7 @@ void drawEye(
               }
             }
 
-            // Convert the polar angle/distance to text map coordinates
+            // Convert the polar angle/distance to texture map coordinates
             if (distance < 128) {
               // We're in the sclera
               if (hasScleraTexture) {

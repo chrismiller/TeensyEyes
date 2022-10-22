@@ -28,6 +28,7 @@ Optional command line parameters are:
   7.  The name of the image file to use as the mask for the lower eyelid.
 """
 
+import copy
 import json
 import math
 import os
@@ -97,13 +98,13 @@ def loadEyeConfig(filename: str) -> List[EyeConfig]:
     result = []
     if leftConfig or rightConfig:
       validateSingleEyeParams(leftConfig)
-      leftParams = params.copy()
+      leftParams = copy.deepcopy(params)
       merge(leftParams, leftConfig)
       leftParams['name'] = params['name'] + '.left'
       result.append(EyeConfig.fromDict(leftParams))
 
       validateSingleEyeParams(rightConfig)
-      rightParams = params.copy()
+      rightParams = copy.deepcopy(params)
       merge(rightParams, rightConfig)
       rightParams['name'] = params['name'] + '.right'
       result.append(EyeConfig.fromDict(rightParams))
@@ -369,8 +370,8 @@ def outputConfig(out: TextIO, config: EyeConfig, mapRadius: int, dispMapName: st
   EyeDefinition {configName} = {
       radius, backColor, tracking, squint, dispMapName,
       {color, slitRadius, min, max},
-      {irisRadius, {irisTexture, irisWidth, irisHeight}, irisColor, irisSpin},
-      {{scleraTexture, scleraWidth, scleraHeight}, scleraColor, scleraSpin},
+      {irisRadius, {irisTexture, irisWidth, irisHeight}, irisColor, irisSpin, iSpin, mirror},
+      {{scleraTexture, scleraWidth, scleraHeight}, scleraColor, scleraSpin, iSpin, mirror},
       {upper, lower, color},
       {mapRadius, angleMapName, dispMapName}
   };
@@ -389,15 +390,15 @@ def outputConfig(out: TextIO, config: EyeConfig, mapRadius: int, dispMapName: st
   else:
     prefix = filenameMappings[config.iris.filename]
     irisDef = f'{prefix}, {prefix}Width, {prefix}Height'
-  mirror = 'true' if config.iris.mirror else 'false'
-  out.write(f'      {{ {config.iris.radius}, {{ {irisDef} }}, {config.iris.color}, {config.iris.angle}, {config.iris.spin}, {mirror} }},\n')
+  mirror = 1023 if config.iris.mirror else 0
+  out.write(f'      {{ {config.iris.radius}, {{ {irisDef} }}, {config.iris.color}, {config.iris.angle}, {config.iris.spin}, {config.iris.iSpin}, {mirror} }},\n')
   if config.sclera.filename is None:
     scleraDef = 'nullptr, 0, 0'
   else:
     prefix = filenameMappings[config.sclera.filename]
     scleraDef = f'{prefix}, {prefix}Width, {prefix}Height'
-  mirror = 'true' if config.sclera.mirror else 'false'
-  out.write(f'      {{ {{ {scleraDef} }}, {config.sclera.color}, {config.sclera.angle}, {config.sclera.spin}, {mirror} }},\n')
+  mirror = 1023 if config.sclera.mirror else 0
+  out.write(f'      {{ {{ {scleraDef} }}, {config.sclera.color}, {config.sclera.angle}, {config.sclera.spin}, {config.sclera.iSpin}, {mirror} }},\n')
   out.write(f'      {{ {upper}, {lower}, {config.eyelid.color} }},\n')
   out.write(f'      {{ {mapRadius}, {angleMapName}, {distMapName} }}\n')
   out.write('  };\n')

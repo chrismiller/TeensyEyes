@@ -33,13 +33,14 @@ class PupilConfig:
 
 
 class IrisConfig:
-  def __init__(self, filename: str = None, color: int = 0, radius: int = 60, angle: int = 0, spin: int = 0, mirror = False):
+  def __init__(self, filename: str = None, color: int = 0, radius: int = 60, angle: int = 0, spin: int = 0, iSpin: int = 0, mirror = False):
     """
     Creates an iris configuration instance.
     :param filename: the name of the iris image file, or None to use the iris color property instead.
     :param color: the color of the iris, 1n 16 bit 565 RGB format. This only takes effect when filename is None.
     :param radius: the radius of the iris, in pixels.
-    :param spin: the amount of spin to apply to the iris on each frame. Set to zero to disable iris spinning.
+    :param spin: the amount of spin to apply to the iris, in rpm. Set to zero to disable iris spinning.
+    :param iSpin: the amount of spin to apply to the iris on each frame. This overrides the spin value.
     :param mirror: if true, the sclera will be flipped left to right.
     """
     self.filename = filename
@@ -47,33 +48,37 @@ class IrisConfig:
     self.radius = radius
     self.angle = angle
     self.spin = spin
+    self.iSpin = iSpin
     self.mirror = mirror
 
   @classmethod
   def fromDict(cls: type[IrisConfig], params: dict[str, object]) -> IrisConfig:
     return cls(params.get('texture'), _toInt(params.get('color', 0)), _toInt(params.get('radius', 60)),
-               _toInt(params.get('angle', 0)), _toInt(params.get('spin', 0)), bool(params.get('mirror', False)))
+               _toInt(params.get('angle', 0)), _toInt(params.get('spin', 0)), _toInt(params.get('iSpin', 0)),
+               bool(params.get('mirror', False)))
 
 
 class ScleraConfig:
-  def __init__(self, filename: str = None, color: int = 0, angle: int = 0, spin: int = 0, mirror = False):
+  def __init__(self, filename: str = None, color: int = 0, angle: int = 0, spin: int = 0, iSpin: int = 0, mirror = False):
     """
     Creates a sclera configuration instance.
     :param filename: the name of the sclera image file, or None to use the color property instead.
     :param color: the color of the sclera, in 16 bit 565 RGB format. This only takes effect when filename is None.
-    :param spin: the amount of spin to apply to the sclera on each frame. Set to zero to disable sclera spinning.
+    :param spin: the amount of spin to apply to the sclera, in rpm. Set to zero to disable sclera spinning.
+    :param iSpin: the amount of spin to apply to the sclera on each frame. Set to zero to disable sclera spinning.
     :param mirror: if true, the sclera will be flipped left to right.
     """
     self.filename = filename
     self.color = color
     self.angle = angle
     self.spin = spin
+    self.iSpin = iSpin
     self.mirror = mirror
 
   @classmethod
   def fromDict(cls: type[ScleraConfig], params: dict[str, object]) -> ScleraConfig:
     return cls(params.get('texture'), _toInt(params.get('color', 0)), _toInt(params.get('angle', 0)),
-               _toInt(params.get('spin', 0)), bool(params.get('mirror', False)))
+               _toInt(params.get('spin', 0)), _toInt(params.get('iSpin', 0)), bool(params.get('mirror', False)))
 
 
 class EyelidConfig:
