@@ -21,4 +21,6 @@ Running the "PlatformIO Upload | eyes" target from CLion, or alternatively runni
 will then compile the firmware and upload it to your Teensy 4.x.
 
 Here's a video of the eyes in action:
+<br/>
+
 [![Teensy Eyes](http://img.youtube.com/vi/Ke1SJ8-6zJw/0.jpg)](https://www.youtube.com/watch?v=Ke1SJ8-6zJw "Teensy Eyes")
