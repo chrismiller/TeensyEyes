@@ -4,7 +4,7 @@
 #include "disp_240_120.h"
 
 namespace fish {
-  // iris.png - 309x128, 16 bit 565 RGB
+  // 309x128, 16 bit 565 RGB
   constexpr uint16_t eyeIrisWidth = 309;
   constexpr uint16_t eyeIrisHeight = 128;
   const uint16_t eyeIris[eyeIrisWidth * eyeIrisHeight] PROGMEM = {
@@ -3306,7 +3306,7 @@ namespace fish {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
   };
 
-  // sclera.png - 333x138, 16 bit 565 RGB
+  // 333x138, 16 bit 565 RGB
   constexpr uint16_t eyeScleraWidth = 333;
   constexpr uint16_t eyeScleraHeight = 138;
   const uint16_t eyeSclera[eyeScleraWidth * eyeScleraHeight] PROGMEM = {

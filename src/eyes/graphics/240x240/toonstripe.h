@@ -4,7 +4,7 @@
 #include "disp_240_120.h"
 
 namespace toonstripe {
-  // iris.png - 8x128, 16 bit 565 RGB
+  // 8x128, 16 bit 565 RGB
   constexpr uint16_t eyeIrisWidth = 8;
   constexpr uint16_t eyeIrisHeight = 128;
   const uint16_t eyeIris[eyeIrisWidth * eyeIrisHeight] PROGMEM = {
@@ -96,7 +96,7 @@ namespace toonstripe {
     0x7218, 0x7218, 0x7218, 0x7218
   };
 
-  // sclera.png - 1x100, 16 bit 565 RGB
+  // 1x100, 16 bit 565 RGB
   constexpr uint16_t eyeScleraWidth = 1;
   constexpr uint16_t eyeScleraHeight = 100;
   const uint16_t eyeSclera[eyeScleraWidth * eyeScleraHeight] PROGMEM = {

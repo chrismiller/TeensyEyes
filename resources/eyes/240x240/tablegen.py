@@ -74,7 +74,6 @@ def merge(dest: dict[str, object], source: dict[str, object]):
 def validateSingleEyeParams(params: dict) -> None:
   checkParamAbsent(params, 'radius')
   checkParamAbsent(params, 'pupil:slitRadius')
-  checkParamAbsent(params, 'pupil:slitRadius')
   checkParamAbsent(params, 'iris:radius')
 
 def loadEyeConfig(filename: str) -> List[EyeConfig]:
@@ -125,7 +124,7 @@ def outputImageFile(out: TextIO, filename: str, name: str, maxWidth: int, maxHei
   if width > maxWidth or height > maxHeight:
     raise Exception(f'Texture is {width}x{height} - it must not exceed {maxWidth} pixels wide or {maxHeight} pixels tall')
 
-  out.write(f'  // {filename} - {width}x{height}, 16 bit 565 RGB\n')
+  out.write(f'  // {width}x{height}, 16 bit 565 RGB\n')
   out.write(f'  constexpr uint16_t {name}Width = {width};\n')
   out.write(f'  constexpr uint16_t {name}Height = {height};\n')
   out.write(f'  const uint16_t {name}[{name}Width * {name}Height] PROGMEM = {{\n')
@@ -206,7 +205,7 @@ def outputEyelid(out: TextIO, filename: str, tableName: str) -> None:
   pixels = image.load()
 
   out.write(
-    f'  // An array of vertical start (inclusive) and end (exclusive) locations for each {filename} eyelid column\n')
+    f'  // An array of vertical start (inclusive) and end (exclusive) locations for each {tableName} eyelid column\n')
   out.write(f'  const uint8_t {tableName}[screenWidth * 2] PROGMEM = {{\n')
 
   hexTable = HexTable(out, image.size[0] * 2, 16, 2, 2)
@@ -287,46 +286,54 @@ def outputPolarMaps(outputDir: str, angleName: str, distName: str, mapRadius: in
         angle *= 512.0 / M_PI  # 0 to <256 in 1st quadrant
         polarAngle[angleIndex] = int(angle)
 
-        d = math.sqrt(d2)
         if d2 > irisRadius2:
           # This point is in the sclera area
+          d = math.sqrt(d2)
           d = (mapRadius - d) / (mapRadius - iRad) * 127.0
           polarDist[distIndex] = int(d)  # 0 to 127, 0 = outer edge of sclera
         else:
-          # This point is in the iris. We use values in the range 128-254 to indicate this.
+          # This point is in the iris/pupil. We use values in the range 128-254 to indicate this.
           if slitPupilRadius == 0:
+            d = math.sqrt(d2)
             d = (iRad - d) / iRad * 127.0
             polarDist[distIndex] = int(d) + 128
           else:
             xp = x + 0.5
 
             # Figure out a sensible starting point based on neighbouring pixels that we've already calculated.
+            # We can do this because pixels to the left and above this one will always have a value the same
+            # or higher than the one we are currently calculating.
             # This results in a massive speedup compared to the original brute-force M4_Eyes approach.
-            start = 129 if x == 0 and y == 0 else polarDist[(y - 1) * mapRadius] if x == 0 else polarDist[
+            start = 254 if x == 0 and y == 0 else polarDist[(y - 1) * mapRadius] if x == 0 else polarDist[
               y * mapRadius + x - 1]
+            # Convert from 254-128 values, to 0-126
             start = 255 - start
-            for i in range(start, -1, -1):
-              ratio = i / 128.0  # 0.0 (open) to just-under-1.0 (slit) (>= 1.0 will cause trouble)
-              # Interpolate a point between top of iris and top of slit pupil, based on ratio
-              y1 = iRad - (iRad - slitPupilRadius) * ratio
-              # x1 is 0 and so is dropped from equation below
-              # And another point between right of iris and center of eye, inverse ratio
-              x2 = iRad * (1.0 - ratio)
+            for i in range(start, 128):
+              ratio = i / 127.0  # Ranges from just over 0.0 (open) to 1.0 (slit)
+              # Interpolate a point vertically between edge of slit pupil and iris, based on the
+              # ratio we're testing
+              y1 = slitPupilRadius + (iRad - slitPupilRadius) * ratio
+              # Interpolate a point horizontally between the eye's center and the right iris edge
+              x2 = iRad * ratio
               # y2 is zero too so is also dropped
-              # Find X coordinate of center of circle that crosses above two points and has Y at 0.0
+              # Find X coordinate of center of circle that crosses above two points and has Y at 0.
+              # Formula: Midpoint between (x1, y1) and (x2, y2) is (x2/2, -y1/2), since x1=0 and y1=0
+              #          The inverse slope is (x2 - x1) / (y2 - y1) = -x2 / y1
+              #          Plugging the midpoint and inverse slope into y = mx + b and solving for b
+              #          gives b = (x2 * x2 / y1 - y1) / 2. Then solving y = mx + b for x where y = 0
+              #          gives the equation below.
               xc = (x2 * x2 - y1 * y1) / (2 * x2)
-              dx = x2 - xc  # Distance from center of circle to right edge
-              r2 = dx * dx  # center-to-right distance squared
+              dx = x2 - xc  # Radius of this circle
+              r2 = dx * dx  # Radius squared
               dx = xp - xc  # X component
-              d2 = dx * dx + dy2  # Distance from pixel to left 'xc' point
+              d2 = dx * dx + dy2  # Distance^2 from pixel to circle center
               if d2 <= r2:
-                # The point is within the circle
+                # The pixel is within the circle
                 polarDist[distIndex] = 255 - i  # Set to distance 'i'
                 break
 
           if polarDist[distIndex] < 128:
-            sys.stderr.write(f"{distName} - iris value out of [128, 255] range at {x},{y} -> {d}\n")
-            # exit(1)
+            sys.stderr.write(f"{distName} - iris value out of [128, 255] range at [{x}, {y}] -> {polarDist[distIndex]}\n")
 
       angleIndex += 1
       distIndex += 1

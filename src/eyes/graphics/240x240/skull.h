@@ -4,7 +4,7 @@
 #include "disp_240_120.h"
 
 namespace skull {
-  // iris.png - 512x128, 16 bit 565 RGB
+  // 512x128, 16 bit 565 RGB
   constexpr uint16_t eyeIrisWidth = 512;
   constexpr uint16_t eyeIrisHeight = 128;
   const uint16_t eyeIris[eyeIrisWidth * eyeIrisHeight] PROGMEM = {
@@ -5472,7 +5472,7 @@ namespace skull {
     0x1000, 0x1000, 0x0800, 0x0800
   };
 
-  // sclera.png - 800x100, 16 bit 565 RGB
+  // 800x100, 16 bit 565 RGB
   constexpr uint16_t eyeScleraWidth = 800;
   constexpr uint16_t eyeScleraHeight = 100;
   const uint16_t eyeSclera[eyeScleraWidth * eyeScleraHeight] PROGMEM = {

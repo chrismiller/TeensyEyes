@@ -69,19 +69,20 @@ uint32_t eyeIndex{};
 OverallState state{};
 
   int EYE_DURATION{4000};
-  std::array<std::array<EyeDefinition, 2>, 9> eyeDefinitions{{
+  std::array<std::array<EyeDefinition, 2>, 10> eyeDefinitions{{
     {doomSpiral::left, doomSpiral::right},
     {bigBlue::eye,     bigBlue::eye},
-    {demon::left,     demon::right},
-//    {doomRed::eye,     doomRed::eye},
+    {demon::left,      demon::right},
+    {doomRed::eye,     doomRed::eye},
     {fish::eye,        fish::eye},
     {fizzgig::eye,     fizzgig::eye},
+    {toonstripe::eye,  toonstripe::eye},
     {hazel::eye,       hazel::eye},
     {newt::eye,        newt::eye},
-    {skull::eye,       skull::eye},
+//    {skull::eye,       skull::eye},
     // {snake::eye,       snake::eye},
+    // {spikes::eye,       spikes::eye},
     {hypnoRed::eye,    hypnoRed::eye}}
-    // demon::params, doomSpiral::params , toonstripe::params , spikes::params
 };
 
 float mapToScreen(int value, int mapRadius, int eyeRadius) {
@@ -269,7 +270,11 @@ void drawEye(
   const int xPositionOverMap = eye.x - screenWidth / 2;
   const int yPositionOverMap = eye.y - screenHeight / 2;
 
-  const int iPupilFactor = (int) ((float) eye.definition->iris.texture.height * 256 * (1.0 / irisValue));
+  bool hasScleraTexture = eye.definition->sclera.hasTexture();
+  bool hasIrisTexture = eye.definition->iris.hasTexture();
+
+  const int pupilCheck = hasIrisTexture ? eye.definition->iris.texture.height : 1;
+  const int iPupilFactor = (int) ((float) pupilCheck * 256 * (1.0 / irisValue));
 
   // Dampen the eyelid movement a bit
   upperFactor = eye.upperLidFactor * 0.7f + upperFactor * 0.3f;
@@ -302,9 +307,6 @@ void drawEye(
       auto previousLower = eye.definition->eyelids.lowerLid(screenX, prevLowerF);
       maxY = max(currentLower, previousLower);
     }
-
-    bool hasScleraTexture = eye.definition->sclera.hasTexture();
-    bool hasIrisTexture = eye.definition->iris.hasTexture();
 
     // Figure out where we are in the displacement map. The eye (sphere) is symmetrical over
     // X and Y, so we can just swap axes to look up the Y displacement using the same table.
@@ -398,7 +400,7 @@ void drawEye(
             } else if (distance < 255) {
               // Either the iris or pupil
               const int ty = (distance - 128) * iPupilFactor / 32768;
-              if (ty >= eye.definition->iris.texture.height) {
+              if (ty >= pupilCheck) {
                 // Pupil
                 p = eye.definition->pupil.color;
               } else {
@@ -728,7 +730,7 @@ void loop() {
   } else if (lightSensorPin >= 0) {
     // TODO: implement me!
   }
-  
+
   frame(eye);
 }
 

@@ -30,7 +30,7 @@
 #include "eyes/graphics/240x240/skull.h"
 #include "eyes/graphics/240x240/snake.h"
 //#include "eyes/graphics/240x240/spikes.h"
-//#include "eyes/graphics/240x240/toonstripe.h"
+#include "eyes/graphics/240x240/toonstripe.h"
 #else
 #include "graphics/128x128/defaultEye.h"      // Standard human-ish hazel eye -OR-
 //#include "graphics/128x128/dragonEye.h"     // Slit pupil fiery dragon/demon eye -OR-
