@@ -26,6 +26,7 @@
 #include "eyes/graphics/240x240/fizzgig.h"
 #include "eyes/graphics/240x240/hazel.h"        // Standard human-ish hazel eye
 #include "eyes/graphics/240x240/hypnoRed.h"
+#include "eyes/graphics/240x240/newt.h"
 #include "eyes/graphics/240x240/skull.h"
 #include "eyes/graphics/240x240/snake.h"
 //#include "eyes/graphics/240x240/spikes.h"

@@ -77,8 +77,9 @@ OverallState state{};
     {fish::eye,        fish::eye},
     {fizzgig::eye,     fizzgig::eye},
     {hazel::eye,       hazel::eye},
+    {newt::eye,        newt::eye},
     {skull::eye,       skull::eye},
-    {snake::eye,       snake::eye},
+    // {snake::eye,       snake::eye},
     {hypnoRed::eye,    hypnoRed::eye}}
     // demon::params, doomSpiral::params , toonstripe::params , spikes::params
 };
