@@ -20,12 +20,6 @@ Requires Pillow imaging and numpy libraries.
 Optional command line parameters are:
   1. The directory to write the output header files to.
   2.  The name of a json config file that specifies the eye's settings. Defaults to config.eye.
-  3.  The name of the eye. This will become a namespace that wraps the lookup tables. Defaults
-      to using the 'name' property in the config.eye file.
-  4.  The name of the image file to use as the iris texture.
-  5.  The name of the image file to use as the sclera texture.
-  6.  The name of the image file to use as the mask for the upper eyelid.
-  7.  The name of the image file to use as the mask for the lower eyelid.
 """
 
 import copy
@@ -33,9 +27,10 @@ import json
 import math
 import os
 import sys
-from typing import TextIO, List, cast
-
 import numpy as np
+
+from typing import TextIO, List, cast
+from pathlib import Path
 from PIL import Image
 from config import EyeConfig
 from hextable import HexTable
@@ -87,9 +82,9 @@ def loadEyeConfig(filename: str) -> List[EyeConfig]:
     f = open(filename)
     params = json.load(f)
 
-    # Use the current directory name for the name if none was specified in the config file
+    # Use the directory name the config file is in for the eye name if none was specified in the config file
     if params.get('name') is None:
-      params['name'] = os.path.basename(os.getcwd()).replace(" ", "")
+      params['name'] = Path(filename).parent.name.replace(" ", "")
 
     # TODO - add support for an arbitrary number of named eyes
     leftConfig = params.pop('left', {})
@@ -415,8 +410,12 @@ def outputConfig(out: TextIO, config: EyeConfig, mapRadius: int, dispMapName: st
   out.write('  };\n')
 
 
-def main():
-  outputDir = getParam(1, '.')
+def toAbsoluteStr(basePath: Path, filename: str) -> str:
+  path = Path(filename)
+  return str(path.resolve()) if path.is_absolute() else str(basePath.joinpath(path).resolve())
+
+
+def generateEyeCode(outputDir: str, configFile: str):
   if not os.path.exists(outputDir):
     sys.stderr.write(f'The path {outputDir} does not exist')
     exit(1)
@@ -425,9 +424,11 @@ def main():
     sys.stderr.write(f'{outputDir} is not a directory (absolute: {absolutePath})')
     exit(1)
 
-  configFile = getParam(2, 'config.eye')
   print(f'Loading eye configuration from {configFile}')
   configs = loadEyeConfig(configFile)
+
+  # All relative filenames in the config file are relative to the config file location
+  basePath = Path(configFile).parent.absolute()
 
   mapRadius = 240
 
@@ -441,7 +442,7 @@ def main():
                   configs[0].iris.radius, configs[0].pupil.slitRadius)
   outputDisplacement(outputDir, dispMapName, mapRadius, configs[0].radius)
 
-  print(f'Writing iris/sclera/eyelid data to {outputFilename}')
+  print(f'Writing iris, sclera and eyelid data to {outputFilename}')
   with open(outputFilename, 'w') as eyeFile:
     eyeFile.write('#include "../eyes.h"\n')
     eyeFile.write(f'#include "{angleMapName}.h"\n')
@@ -455,12 +456,14 @@ def main():
 
       if config.iris.filename is not None and  config.iris.filename not in filenameMappings:
         irisName = configName + 'Iris'
-        outputImageFile(eyeFile, config.iris.filename, irisName, 512, 128)
+        fullPath = toAbsoluteStr(basePath, config.iris.filename)
+        outputImageFile(eyeFile, fullPath, irisName, 512, 128)
         filenameMappings[config.iris.filename] = irisName
 
       if config.sclera.filename is not None and config.sclera.filename not in filenameMappings:
           scleraName = configName + 'Sclera'
-          outputImageFile(eyeFile, config.sclera.filename, scleraName, 800, 200)
+          fullPath = toAbsoluteStr(basePath, config.sclera.filename)
+          outputImageFile(eyeFile, fullPath, scleraName, 800, 200)
           filenameMappings[config.sclera.filename] = scleraName
 
       if config.eyelid.upperFilename is None:
@@ -469,10 +472,12 @@ def main():
           outputNoEyelids(noEyelidsFile, config.radius)
       else:
         if config.eyelid.upperFilename not in filenameMappings:
-          outputEyelid(eyeFile, config.eyelid.upperFilename, configName + 'Upper')
+          fullPath = toAbsoluteStr(basePath, config.eyelid.upperFilename)
+          outputEyelid(eyeFile, fullPath, configName + 'Upper')
           filenameMappings[config.eyelid.upperFilename] = configName + 'Upper'
         if config.eyelid.lowerFilename not in filenameMappings:
-          outputEyelid(eyeFile, config.eyelid.lowerFilename, configName + 'Lower')
+          fullPath = toAbsoluteStr(basePath, config.eyelid.lowerFilename)
+          outputEyelid(eyeFile, fullPath, configName + 'Lower')
           filenameMappings[config.eyelid.lowerFilename] = configName + 'Lower'
 
       outputConfig(eyeFile, config, mapRadius, dispMapName, angleMapName, distMapName, filenameMappings)
@@ -482,4 +487,6 @@ def main():
   print("All done!")
 
 if __name__ == "__main__":
-  main()
+  outputDir = getParam(1, '.')
+  configFile = getParam(2, 'config.eye')
+  generateEyeCode(outputDir, configFile)
