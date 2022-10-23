@@ -37,7 +37,7 @@ from typing import TextIO, List, cast
 
 import numpy as np
 from PIL import Image
-from config import EyeConfig, IrisConfig, ScleraConfig
+from config import EyeConfig
 from hextable import HexTable
 
 SCREEN_WIDTH = 240
@@ -175,17 +175,28 @@ def outputGreyscaleCpp(outputDir: str, name: str, data, width: int, height: int)
     outputGreyscale(cpp, data, width, height, name)
 
 
-def outputNoEyelids(out: TextIO) -> None:
-  out.write('  // All zeroes, which results in no upper eyelid\n')
+def outputNoEyelids(out: TextIO, eyeRadius: int) -> None:
+  out.write('  // Creates eyelids that are always circular with no movement \n')
+  hexTable = HexTable(out, SCREEN_WIDTH * 2, 16, 2, 2)
   out.write('  const uint8_t noUpper[screenWidth * 2] PROGMEM = {\n')
-  for i in range(30):
-    out.write('   ' + ' 0x00,' * 16 + '\n')
-  out.write('  };\n\n')
-  out.write('  // All 255, which results in no lower eyelid\n')
+  r2 = float(eyeRadius * eyeRadius)
+  midX = SCREEN_WIDTH / 2.0 - 0.5
+  midY = SCREEN_HEIGHT / 2.0 - 0.5
+  for x in range(SCREEN_WIDTH):
+    # Generate points on a circle that fits the eye
+    xOff = x - midX
+    y = max(0, int(np.trunc(midY - np.sqrt(r2 - xOff * xOff))) - 1)
+    hexTable.write(y)
+    hexTable.write(y)
+
+  hexTable.reset(SCREEN_WIDTH * 2)
   out.write('  const uint8_t noLower[screenWidth * 2] PROGMEM = {\n')
-  for i in range(30):
-    out.write('   ' + ' 0xFF,' * 16 + '\n')
-  out.write('  };\n\n')
+  for x in range(SCREEN_WIDTH):
+    # Generate points on a circle that fits the eye
+    xOff = x - midX
+    y = min(int(np.trunc(midY + np.sqrt(r2 - xOff * xOff))) + 1, SCREEN_HEIGHT)
+    hexTable.write(y)
+    hexTable.write(y)
 
 
 def outputEyelid(out: TextIO, filename: str, tableName: str) -> None:
@@ -455,7 +466,7 @@ def main():
       if config.eyelid.upperFilename is None:
         with open(f'{outputDir}/noeyelids.h', 'w') as noEyelidsFile:
           eyeFile.write('#include "noeyelids.h"\n\n')
-          outputNoEyelids(noEyelidsFile)
+          outputNoEyelids(noEyelidsFile, config.radius)
       else:
         if config.eyelid.upperFilename not in filenameMappings:
           outputEyelid(eyeFile, config.eyelid.upperFilename, configName + 'Upper')
