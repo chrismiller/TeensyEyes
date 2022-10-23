@@ -69,8 +69,10 @@ uint32_t eyeIndex{};
 OverallState state{};
 
   int EYE_DURATION{4000};
-  std::array<std::array<EyeDefinition, 2>, 10> eyeDefinitions{{
+  std::array<std::array<EyeDefinition, 2>, 12> eyeDefinitions{{
     {doomSpiral::left, doomSpiral::right},
+    {doe::left,        doe::right},
+    {cat::eye,         cat::eye},
     {bigBlue::eye,     bigBlue::eye},
     {demon::left,      demon::right},
     {doomRed::eye,     doomRed::eye},

@@ -19,7 +19,9 @@
 #ifdef LARGE_EYES
 #include "eyes/graphics/240x240/anime.h"
 #include "eyes/graphics/240x240/bigBlue.h"
+#include "eyes/graphics/240x240/cat.h"
 #include "eyes/graphics/240x240/demon.h"
+#include "eyes/graphics/240x240/doe.h"
 #include "eyes/graphics/240x240/doomRed.h"
 #include "eyes/graphics/240x240/doomSpiral.h"
 #include "eyes/graphics/240x240/fish.h"
