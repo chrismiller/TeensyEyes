@@ -24,3 +24,13 @@ Here's a video of the eyes in action:
 <br/>
 
 [![Teensy Eyes](http://img.youtube.com/vi/Ke1SJ8-6zJw/0.jpg)](https://www.youtube.com/watch?v=Ke1SJ8-6zJw "Teensy Eyes")
+
+To generate the data files for a single eye, run the following from the `resources/eyes/240x240` directory:
+```shell
+python tablegen.py <output dir> path/to/config.eye
+```
+To generate all eyes (you may want to make sure the output directory is empty first, so you don't end
+up with redundant data files in there if your eye's configurations have changed):
+```shell
+python genall.py <output dir>
+```
