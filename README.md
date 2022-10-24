@@ -1,20 +1,28 @@
 # TeensyEyes
 
-My take on "Uncanny Eyes" for the Teensy 4.0 with GC9A01A screens. Work in progress...
+### Introduction
 
-Based on the following projects:
+This project is my take on "[Uncanny Eyes](https://github.com/adafruit/Uncanny_Eyes)", adapted for [Teensy 4.x](https://www.pjrc.com/store/teensy40.html)
+microcontrollers. It renders animated eyes on round GC9A01A LCD screens. See the video below for an example of the eyes in action.
+
+This is all still very much a work in progress. The aim is to turn this into a library that is fully configurable and
+easily integrated with your own Teensy projects.
+
+This codebase is based on code and ideas from the following projects:
   - https://github.com/adafruit/Uncanny_Eyes
   - https://github.com/adafruit/Adafruit_Learning_System_Guides/tree/main/M4_Eyes
   - https://github.com/mjs513/GC9A01A_t3n
 
+### Building and Running
+
 This project is developed with PlatformIO and (optionally) CLion.
-To build and run it, you will need to first run the following from within the TeensyEyes directory:
+Before you build and run it for the first time, you will need to first run the following from within the TeensyEyes directory:
 ```
 mkdir lib
 cd lib
 git clone https://github.com/mjs513/GC9A01A_t3n
 ```
-This will check out the GC9A01A_t3n library, which is required to use the GC9A01 LCD screens.
+This will check out the [GC9A01A_t3n library](https://github.com/mjs513/GC9A01A_t3n), which is required to use GC9A01 LCD screens.
 
 Running the "PlatformIO Upload | eyes" target from CLion, or alternatively running
 ```platformio run --target upload -e eyes```
