@@ -24,6 +24,7 @@
 #include "eyes/graphics/240x240/doe.h"
 #include "eyes/graphics/240x240/doomRed.h"
 #include "eyes/graphics/240x240/doomSpiral.h"
+#include "eyes/graphics/240x240/dragon.h"
 #include "eyes/graphics/240x240/fish.h"
 #include "eyes/graphics/240x240/fizzgig.h"
 #include "eyes/graphics/240x240/hazel.h"        // Standard human-ish hazel eye
