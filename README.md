@@ -35,15 +35,15 @@ Here's a video of the eyes in action:
 [![Teensy Eyes](http://img.youtube.com/vi/Ke1SJ8-6zJw/0.jpg)](https://www.youtube.com/watch?v=Ke1SJ8-6zJw "Teensy Eyes")
 
 ### Creating Your Own Eyes
-Each type of eye is defined with a config.eye JSON file that specifies various parameters that
-described the eye, iris and sclera, plus optional bitmaps that define the extents of the upper
-and lower eyelids, along with any textures for the iris and sclera.
+Each type of eye is defined with a config.eye JSON file specifying various parameters of the eye, pupil, iris and
+sclera, plus (optional) bitmaps that define the extents of the upper and lower eyelids, along with any textures for the
+iris and sclera.
 
-Detailed documentation for this is coming, but in the meantime, if you want to try creating your own eyes
+Detailed documentation for config.eye is coming, but in the meantime, if you want to try creating your own eyes
 then copying and editing existing eyes in the `resources/eyes/240x240` directory is a good
-starting point. Note that colors are currently only able to be specified as 5:6:5 decimal
+starting point. Note that colors are currently only able to be specified as 5:6:5 RGB decimal
 or hex values. Try [this](http://greekgeeks.net/#maker-tools_convertColor) for help in creating
-your own color codes.
+your own 5:6:5 color codes.
 
 Once you have an eye definition that you want to try, you need to generate code from it for
 use in your firmware.
@@ -57,3 +57,7 @@ up with redundant data files in there if your eye's configurations have changed.
 ```shell
 python genall.py <output dir>
 ```
+
+To use your newly created eye, include it with `#include "<path/to/eyename.h"` and access it in your
+code using `eyename::eye` (or `eyename::left` and `eyename::right` if your eye has different parameters
+for the left and right eyes).
