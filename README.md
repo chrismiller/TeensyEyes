@@ -46,16 +46,21 @@ or hex values. Try [this](http://greekgeeks.net/#maker-tools_convertColor) for h
 your own 5:6:5 color codes.
 
 Once you have an eye definition that you want to try, you need to generate code from it for
-use in your firmware.
+use in your firmware. For this you will need a recent version of [Python](https://www.python.org/) installed, as well as [numpy](https://numpy.org/)
+and the imaging library [Pillow](https://python-pillow.org/). You can install these two libraries with:
+```shell
+pip install numpy
+pip install Pillow
+```
 
 To generate the data files for a single eye, run the following from the `resources/eyes/240x240` directory:
 ```shell
-python tablegen.py <output dir> path/to/your/config.eye
+python tablegen.py ../../../src/eyes/graphics/240x240 path/to/your/config.eye
 ```
 To generate _all_ eyes, run the `genall.py` command shown below. Note that you may want to make sure the output directory is empty first, so you don't end
 up with redundant data files in there if your eye's configurations have changed.
 ```shell
-python genall.py <output dir>
+python genall.py ../../../src/eyes/graphics/240x240
 ```
 
 To use your newly created eye, include it with `#include "path/to/eyename.h"` and access it in your
