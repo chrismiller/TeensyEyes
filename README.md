@@ -28,17 +28,32 @@ Running the "PlatformIO Upload | eyes" target from CLion, or alternatively runni
 ```platformio run --target upload -e eyes```
 will then compile the firmware and upload it to your Teensy 4.x.
 
+### What does it Look Like?
 Here's a video of the eyes in action:
 <br/>
 
 [![Teensy Eyes](http://img.youtube.com/vi/Ke1SJ8-6zJw/0.jpg)](https://www.youtube.com/watch?v=Ke1SJ8-6zJw "Teensy Eyes")
 
+### Creating Your Own Eyes
+Each type of eye is defined with a config.eye JSON file that specifies various parameters that
+described the eye, iris and sclera, plus optional bitmaps that define the extents of the upper
+and lower eyelids, along with any textures for the iris and sclera.
+
+Detailed documentation for this is coming, but in the meantime, if you want to try creating your own eyes
+then copying and editing existing eyes in the `resources/eyes/240x240` directory is a good
+starting point. Note that colors are currently only able to be specified as 5:6:5 decimal
+or hex values. Try [this](http://greekgeeks.net/#maker-tools_convertColor) for help in creating
+your own color codes.
+
+Once you have an eye definition that you want to try, you need to generate code from it for
+use in your firmware.
+
 To generate the data files for a single eye, run the following from the `resources/eyes/240x240` directory:
 ```shell
-python tablegen.py <output dir> path/to/config.eye
+python tablegen.py <output dir> path/to/your/config.eye
 ```
-To generate all eyes (you may want to make sure the output directory is empty first, so you don't end
-up with redundant data files in there if your eye's configurations have changed):
+To generate _all_ eyes, run the `genall.py` command shown below. Note that you may want to make sure the output directory is empty first, so you don't end
+up with redundant data files in there if your eye's configurations have changed.
 ```shell
 python genall.py <output dir>
 ```
