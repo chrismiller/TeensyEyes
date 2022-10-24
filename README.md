@@ -58,6 +58,6 @@ up with redundant data files in there if your eye's configurations have changed.
 python genall.py <output dir>
 ```
 
-To use your newly created eye, include it with `#include "<path/to/eyename.h"` and access it in your
-code using `eyename::eye` (or `eyename::left` and `eyename::right` if your eye has different parameters
-for the left and right eyes).
+To use your newly created eye, include it with `#include "path/to/eyename.h"` and access it in your
+code using `eyename::eye`, or with `eyename::left` and `eyename::right` if your eye has different parameters
+for the left and right eyes.
