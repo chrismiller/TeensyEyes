@@ -26,7 +26,7 @@ struct OverallState {
   float eyeNewX{};
   float eyeNewY{};
   uint32_t moveStartTime{};
-  int32_t moveDuration{};
+  uint32_t moveDuration{};
   uint32_t lastSaccadeStop{};
   uint32_t saccadeInterval{};
   int fixate{7};

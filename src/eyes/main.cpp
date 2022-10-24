@@ -68,24 +68,26 @@ uint32_t eyeIndex{};
 
 OverallState state{};
 
-  int EYE_DURATION{4000};
-  std::array<std::array<EyeDefinition, 2>, 13> eyeDefinitions{{
-    {dragon::eye,      dragon::eye},
-    {doomSpiral::left, doomSpiral::right},
-    {doe::left,        doe::right},
-    {cat::eye,         cat::eye},
-    {bigBlue::eye,     bigBlue::eye},
-    {demon::left,      demon::right},
-    {doomRed::eye,     doomRed::eye},
-    {fish::eye,        fish::eye},
-    {fizzgig::eye,     fizzgig::eye},
-    {toonstripe::eye,  toonstripe::eye},
-    {hazel::eye,       hazel::eye},
-    {newt::eye,        newt::eye},
+constexpr bool showFps{false};
+
+constexpr uint32_t EYE_DURATION{4000};
+std::array<std::array<EyeDefinition, 2>, 13> eyeDefinitions{{
+  {dragon::eye,      dragon::eye},
+  {doomSpiral::left, doomSpiral::right},
+  {doe::left,        doe::right},
+  {cat::eye,         cat::eye},
+  {bigBlue::eye,     bigBlue::eye},
+  {demon::left,      demon::right},
+  {doomRed::eye,     doomRed::eye},
+  {fish::eye,        fish::eye},
+  {fizzgig::eye,     fizzgig::eye},
+  {toonstripe::eye,  toonstripe::eye},
+  {hazel::eye,       hazel::eye},
+  {newt::eye,        newt::eye},
 //    {skull::eye,       skull::eye},
-    // {snake::eye,       snake::eye},
-    // {spikes::eye,       spikes::eye},
-    {hypnoRed::eye,    hypnoRed::eye}}
+  // {snake::eye,       snake::eye},
+  // {spikes::eye,       spikes::eye},
+  {hypnoRed::eye,    hypnoRed::eye}}
 };
 
 float mapToScreen(int value, int mapRadius, int eyeRadius) {
@@ -453,29 +455,21 @@ void drawEye(
 #endif
 
 
-  // ==================================================================================
-  // FPS counter
-  static elapsedMillis ms{};
-  static int fps{};
-  static int count{};
-  count++;
-  if (ms >= 1000L) {
-    fps = count;
-    count = 0;
-    ms = 0L;
+  if (showFps) {
+    // FPS counter
+    static elapsedMillis ms{};
+    static int fps{};
+    static int count{};
+    count++;
+    if (ms >= 1000L) {
+      fps = count;
+      count = 0;
+      ms = 0L;
+    }
+    eye.display->setTextSize(2);
+    eye.display->setTextColor(WHITE, BLACK);
+    eye.display->drawNumber(fps, 100, 80);
   }
-
-
-
-
-//  eye.display->setTextSize(2);
-//  eye.display->setTextColor(WHITE, BLACK);
-//  eye.display->drawNumber(fps, 100, 80);
-
-//  eye.display->drawFloat(upperF, 2, 100, 100);
-//  eye.display->drawFloat(lowerF, 2, 100, 120);
-//  eye.display->drawFloat(blinkFactor, 2, 100, 140);
-  // ==================================================================================
 
 
 #if defined(USE_ASYNC_UPDATES)
