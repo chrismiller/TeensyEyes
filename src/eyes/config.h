@@ -13,6 +13,11 @@
 // Otherwise your choice, standard is asymmetrical
 //#define SYMMETRICAL_EYELID
 
+// Enable ONE of these #includes to specify the display type being used
+#include <GC9A01A_t3n.h>
+
+typedef GC9A01A_t3n Display; // Using TFT display(s)
+
 #include "graphics/eyes.h"
 
 // Enable the eye(s) you want to #include -- HUGE graphics tables for various eyes:
@@ -64,9 +69,6 @@
   //#define TFT_SPI        SPI
   //#define TFT_PERIPH     PERIPH_SPI
 
-  // Enable ONE of these #includes to specify the display type being used
-#include <GC9A01A_t3n.h>
-  
   #define SPI_FREQ 48000000    // TFT: use max SPI (clips to 12 MHz on M0)
 
 // This table contains ONE LINE PER EYE.  The table MUST be present with

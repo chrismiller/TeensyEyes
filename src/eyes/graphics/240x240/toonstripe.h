@@ -1,7 +1,10 @@
+#pragma once
+
 #include "../eyes.h"
 #include "polarAngle_240.h"
 #include "polarDist_240_120_75_0.h"
 #include "disp_240_120.h"
+#include "noeyelids_120.h"
 
 namespace toonstripe {
   // 8x128, 16 bit 565 RGB
@@ -111,14 +114,12 @@ namespace toonstripe {
     0xBFDF, 0xBFDF, 0xBFDF, 0xBFDF
   };
 
-#include "noeyelids.h"
-
   const EyeDefinition eye PROGMEM = {
       120, 35793, true, 0.5, disp_240_120, 
       { 24579, 0, 0.0, 1.0 },
       { 75, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },
-      { noUpper, noLower, 0 },
+      { noUpper_120, noLower_120, 0 },
       { 240, polarAngle_240, polarDist_240_120_75_0 }
   };
 }

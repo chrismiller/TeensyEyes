@@ -48,8 +48,6 @@ typedef struct {        // Struct is defined before including config.h --
   uint8_t init_option;  // option for Init
 } eyeInfo_t;
 
-typedef GC9A01A_t3n Display; // Using TFT display(s)
-
 #include "config.h"     // ****** CONFIGURATION IS DONE IN HERE ******
 
 #define RGBColor(r, g, b) GC9A01A_t3n::Color565(r, g, b)

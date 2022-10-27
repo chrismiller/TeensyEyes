@@ -155,7 +155,7 @@ struct EyeDefinition {
 
 /// One-per-eye structure. Mutable, holding the current state of an eye/display.
 struct Eye {
-  Display *display; // -> OLED/TFT object
+  Display *display{}; // -> OLED/TFT object
   EyeDefinition *definition{};
   /// The direction the eyes are looking, with mapRadius meaning straight ahead
   float x{};

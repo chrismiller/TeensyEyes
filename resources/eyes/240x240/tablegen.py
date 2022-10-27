@@ -157,10 +157,17 @@ def outputGreyscale(out: TextIO, data, width: int, height: int, name: str) -> No
   # img.save(f'{name}.png')
 
 
+def outputHeader(filename: str, arrayName: str) -> None:
+  with open(filename, 'w') as header:
+    header.write('#pragma once\n\n')
+    header.write('#include <Arduino.h>\n\n')
+    header.write(f'extern const uint8_t {arrayName}[];\n')
+
+
 def outputGreyscaleCpp(outputDir: str, name: str, data, width: int, height: int) -> None:
   base = f'{outputDir}/{name}'
   print(f'Writing {name} lookup table to {base}.(h, cpp)')
-  with open(base + '.h', 'w') as header:
+  with open(f'{base}.h', 'w') as header:
     header.write('#pragma once\n\n')
     header.write('#include <Arduino.h>\n\n')
     header.write(f'extern const uint8_t {name}[];\n')
@@ -169,28 +176,38 @@ def outputGreyscaleCpp(outputDir: str, name: str, data, width: int, height: int)
     outputGreyscale(cpp, data, width, height, name)
 
 
-def outputNoEyelids(out: TextIO, eyeRadius: int) -> None:
-  out.write('  // Creates eyelids that are always circular with no movement \n')
-  hexTable = HexTable(out, SCREEN_WIDTH * 2, 16, 2, 2)
-  out.write('  const uint8_t noUpper[screenWidth * 2] PROGMEM = {\n')
-  r2 = float(eyeRadius * eyeRadius)
-  midX = SCREEN_WIDTH / 2.0 - 0.5
-  midY = SCREEN_HEIGHT / 2.0 - 0.5
-  for x in range(SCREEN_WIDTH):
-    # Generate points on a circle that fits the eye
-    xOff = x - midX
-    y = max(0, int(np.trunc(midY - np.sqrt(r2 - xOff * xOff))) - 1)
-    hexTable.write(y)
-    hexTable.write(y)
+def outputNoEyelids(outputDir: str, eyeRadius: int) -> None:
+  base = f'{outputDir}/noeyelids_{eyeRadius}'
 
-  hexTable.reset(SCREEN_WIDTH * 2)
-  out.write('  const uint8_t noLower[screenWidth * 2] PROGMEM = {\n')
-  for x in range(SCREEN_WIDTH):
-    # Generate points on a circle that fits the eye
-    xOff = x - midX
-    y = min(int(np.trunc(midY + np.sqrt(r2 - xOff * xOff))) + 1, SCREEN_HEIGHT)
-    hexTable.write(y)
-    hexTable.write(y)
+  with open(f'{base}.h', 'w') as header:
+    header.write('#pragma once\n\n')
+    header.write('#include <Arduino.h>\n\n')
+    header.write(f'extern const uint8_t noUpper_{eyeRadius}[];\n\n')
+    header.write(f'extern const uint8_t noLower_{eyeRadius}[];\n')
+
+  with open(f'{base}.cpp', 'w') as out:
+    out.write(f'#include "noeyelids_{eyeRadius}.h"\n\n')
+    out.write('  // Creates eyelids that are always circular with no movement \n')
+    hexTable = HexTable(out, SCREEN_WIDTH * 2, 16, 2, 2)
+    out.write(f'  const uint8_t noUpper_{eyeRadius}[{SCREEN_WIDTH} * 2] PROGMEM = {{\n')
+    r2 = float(eyeRadius * eyeRadius)
+    midX = SCREEN_WIDTH / 2.0 - 0.5
+    midY = SCREEN_HEIGHT / 2.0 - 0.5
+    for x in range(SCREEN_WIDTH):
+      # Generate points on a circle that fits the eye
+      xOff = x - midX
+      y = max(0, int(np.trunc(midY - np.sqrt(r2 - xOff * xOff))) - 1)
+      hexTable.write(y)
+      hexTable.write(y)
+
+    hexTable.reset(SCREEN_WIDTH * 2)
+    out.write(f'  const uint8_t noLower_{eyeRadius}[{SCREEN_WIDTH} * 2] PROGMEM = {{\n')
+    for x in range(SCREEN_WIDTH):
+      # Generate points on a circle that fits the eye
+      xOff = x - midX
+      y = min(int(np.trunc(midY + np.sqrt(r2 - xOff * xOff))) + 1, SCREEN_HEIGHT)
+      hexTable.write(y)
+      hexTable.write(y)
 
 
 def outputEyelid(out: TextIO, filename: str, tableName: str) -> None:
@@ -392,8 +409,8 @@ def outputConfig(out: TextIO, config: EyeConfig, mapRadius: int, dispMapName: st
 
   configName = config.name.split('.', 1)[-1]
 
-  upper = filenameMappings.get(config.eyelid.upperFilename, 'noUpper')
-  lower = filenameMappings.get(config.eyelid.lowerFilename, 'noLower')
+  upper = filenameMappings.get(config.eyelid.upperFilename, f'noUpper_{config.radius}')
+  lower = filenameMappings.get(config.eyelid.lowerFilename, f'noLower_{config.radius}')
 
   out.write(f'  const EyeDefinition {configName} PROGMEM = {{\n')
   out.write(f'      {config.radius}, {config.backColor}, {str(config.tracking).lower()}, {config.squint}, {dispMapName}, \n')
@@ -451,32 +468,21 @@ def generateEyeCode(outputDir: str, configFile: str):
 
   print(f'Writing iris, sclera and eyelid data to {outputFilename}')
   with open(outputFilename, 'w') as eyeFile:
+    eyeFile.write('#pragma once\n\n')
     eyeFile.write('#include "../eyes.h"\n')
     eyeFile.write(f'#include "{angleMapName}.h"\n')
     eyeFile.write(f'#include "{distMapName}.h"\n')
-    eyeFile.write(f'#include "{dispMapName}.h"\n\n')
-    eyeFile.write(f'namespace {eyeName} {{\n')
+    eyeFile.write(f'#include "{dispMapName}.h"\n')
+    if configs[0].eyelid.upperFilename is None:
+      eyeFile.write(f'#include "noeyelids_{configs[0].radius}.h"\n')
+    eyeFile.write(f'\nnamespace {eyeName} {{\n')
 
     filenameMappings = {}
     for config in configs:
       configName = config.name.split('.', 1)[-1]
 
-      if config.iris.filename is not None and  config.iris.filename not in filenameMappings:
-        irisName = configName + 'Iris'
-        fullPath = toAbsoluteStr(basePath, config.iris.filename)
-        outputImageFile(eyeFile, fullPath, irisName, 512, 128)
-        filenameMappings[config.iris.filename] = irisName
-
-      if config.sclera.filename is not None and config.sclera.filename not in filenameMappings:
-          scleraName = configName + 'Sclera'
-          fullPath = toAbsoluteStr(basePath, config.sclera.filename)
-          outputImageFile(eyeFile, fullPath, scleraName, 800, 200)
-          filenameMappings[config.sclera.filename] = scleraName
-
       if config.eyelid.upperFilename is None:
-        with open(f'{outputDir}/noeyelids.h', 'w') as noEyelidsFile:
-          eyeFile.write('#include "noeyelids.h"\n\n')
-          outputNoEyelids(noEyelidsFile, config.radius)
+        outputNoEyelids(outputDir, config.radius)
       else:
         if config.eyelid.upperFilename not in filenameMappings:
           fullPath = toAbsoluteStr(basePath, config.eyelid.upperFilename)
@@ -486,6 +492,18 @@ def generateEyeCode(outputDir: str, configFile: str):
           fullPath = toAbsoluteStr(basePath, config.eyelid.lowerFilename)
           outputEyelid(eyeFile, fullPath, configName + 'Lower')
           filenameMappings[config.eyelid.lowerFilename] = configName + 'Lower'
+
+      if config.iris.filename is not None and  config.iris.filename not in filenameMappings:
+        irisName = configName + 'Iris'
+        fullPath = toAbsoluteStr(basePath, config.iris.filename)
+        outputImageFile(eyeFile, fullPath, irisName, 512, 128)
+        filenameMappings[config.iris.filename] = irisName
+
+      if config.sclera.filename is not None and config.sclera.filename not in filenameMappings:
+        scleraName = configName + 'Sclera'
+        fullPath = toAbsoluteStr(basePath, config.sclera.filename)
+        outputImageFile(eyeFile, fullPath, scleraName, 800, 200)
+        filenameMappings[config.sclera.filename] = scleraName
 
       outputConfig(eyeFile, config, mapRadius, dispMapName, angleMapName, distMapName, filenameMappings)
 

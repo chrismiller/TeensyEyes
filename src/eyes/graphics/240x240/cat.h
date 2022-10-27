@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../eyes.h"
 #include "polarAngle_240.h"
 #include "polarDist_240_125_90_90.h"

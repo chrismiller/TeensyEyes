@@ -1,7 +1,10 @@
+#pragma once
+
 #include "../eyes.h"
 #include "polarAngle_240.h"
 #include "polarDist_240_120_115_0.h"
 #include "disp_240_120.h"
+#include "noeyelids_120.h"
 
 namespace fish {
   // 309x128, 16 bit 565 RGB
@@ -7142,14 +7145,12 @@ namespace fish {
     0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
   };
 
-#include "noeyelids.h"
-
   const EyeDefinition eye PROGMEM = {
       120, 0, true, 0.5, disp_240_120, 
       { 0, 0, 0.4, 0.5 },
       { 115, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },
-      { noUpper, noLower, 0 },
+      { noUpper_120, noLower_120, 0 },
       { 240, polarAngle_240, polarDist_240_120_115_0 }
   };
 }
