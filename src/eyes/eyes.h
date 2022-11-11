@@ -2,8 +2,6 @@
 
 #include <Arduino.h>
 
-// LARGE_EYES are designed for 240x240 screens
-#define LARGE_EYES
 constexpr uint16_t screenWidth = 240;
 constexpr uint16_t screenHeight = 240;
 
@@ -25,13 +23,18 @@ struct OverallState {
   float eyeOldY{};
   float eyeNewX{};
   float eyeNewY{};
-  uint32_t moveStartTime{};
-  uint32_t moveDuration{};
-  uint32_t lastSaccadeStop{};
-  uint32_t saccadeInterval{};
+  uint32_t moveStartTimeMs{};
+  uint32_t moveDurationMs{};
+  uint32_t lastSaccadeStopMs{};
+  uint32_t saccadeIntervalMs{};
+  uint32_t timeToNextBlinkMs{};
+  uint32_t timeOfLastBlinkMs{};
+
+  // Variables for keeping track of the pupil size
+  uint16_t irisFrame{};
+  float irisValue{0.5f};
+
   int fixate{7};
-  uint32_t timeToNextBlink{};
-  uint32_t timeOfLastBlink{};
 };
 
 enum class BlinkState {
@@ -41,8 +44,8 @@ enum class BlinkState {
 /// A simple state machine is used to control eye blinks/winks
 struct EyeBlink {
   BlinkState state{BlinkState::NotBlinking};
-  uint32_t duration{};    // Duration of blink state (micros)
-  uint32_t startTime{};   // Time (micros) of last state change
+  uint32_t durationMs{};  // Duration of blink state
+  uint32_t startTimeMs{}; // Time of last state change
   float blinkFactor{};    // The most recent amount of blink [0..1] that was applied. 0 = not blinking, 1 = full blink
 };
 
@@ -135,28 +138,29 @@ struct EyelidParams {
 };
 
 struct PolarParams {
-  const uint16_t mapRadius{240};  // Pixels
+  uint16_t mapRadius{240};  // Pixels
   const uint8_t *angle{};
   const uint8_t *distance{};
 };
 
 struct EyeDefinition {
-  const uint16_t radius{120};     // Eye radius, in pixels
-  const uint16_t backColor{};     // 16-bit 565 RGB, big-endian
-  const bool tracking{false};     // Whether the eyelids 'track' the pupils or not
-  const float squint{};
+  uint16_t radius{120};     // Eye radius, in pixels
+  uint16_t backColor{};     // 16-bit 565 RGB, big-endian
+  bool tracking{false};     // Whether the eyelids 'track' the pupils or not
+  float squint{};
   const uint8_t *displacement{};
-  const PupilParams pupil{};
-  const IrisParams iris{};
-  const ScleraParams sclera{};
-  const EyelidParams eyelids{};
-  const PolarParams polar{};
+  PupilParams pupil{};
+  IrisParams iris{};
+  ScleraParams sclera{};
+  EyelidParams eyelids{};
+  PolarParams polar{};
 };
 
 /// One-per-eye structure. Mutable, holding the current state of an eye/display.
+template <typename Disp>
 struct Eye {
-  Display *display{}; // -> OLED/TFT object
-  EyeDefinition *definition{};
+  Disp *display{};        // A Display implementation
+  const EyeDefinition *definition{};
   /// The direction the eyes are looking, with mapRadius meaning straight ahead
   float x{};
   float y{};
@@ -168,4 +172,10 @@ struct Eye {
   float upperLidFactor{};
   float lowerLidFactor{};
   bool drawAll{};
+};
+
+template <typename Disp>
+struct DisplayDefinition {
+  Disp *display{};        // A Display implementation
+  EyeDefinition &definition;
 };
