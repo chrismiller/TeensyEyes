@@ -3,8 +3,8 @@
 #include "eyes/eyes.h"
 
 // Enable the eye(s) you want to #include -- these are large graphics tables for various eyes:
-#include "eyes/240x240/anime.h"
-//#include "eyes/240x240/bigBlue.h"
+//#include "eyes/240x240/anime.h"
+#include "eyes/240x240/bigBlue.h"
 #include "eyes/240x240/brown.h"
 #include "eyes/240x240/cat.h"
 #include "eyes/240x240/demon.h"
