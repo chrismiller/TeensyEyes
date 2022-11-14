@@ -152,6 +152,15 @@ private:
     }
   }
 
+  uint32_t doBlink() {
+    const uint32_t blinkDuration = random(50, 100); // Blink for a somewhat random number of milliseconds
+    // Set up durations for all eyes (if not already winking)
+    for (auto &e: eyes) {
+      wink(e, blinkDuration);
+    }
+    return blinkDuration;
+  }
+
   /// If autoBlink is enabled, periodically starts the eyes blinking.
   void applyAutoBlink() {
     if (!autoBlink) {
@@ -160,13 +169,8 @@ private:
 
     const uint32_t t = millis();
     if (t - state.timeOfLastBlinkMs >= state.timeToNextBlinkMs) {
-      // Start a new blink. Blink start times and durations are random (within ranges).
       state.timeOfLastBlinkMs = t;
-      const uint32_t blinkDuration = random(50, 100); // 1/20 - 1/10 sec
-      // Set up durations for all eyes (if not already winking)
-      for (auto &e: eyes) {
-        wink(e, blinkDuration);
-      }
+      const uint32_t blinkDuration = doBlink();
       state.timeToNextBlinkMs = blinkDuration * 3 + random(4000);
     }
   }
@@ -533,6 +537,7 @@ public:
 
   /// Starts the blink process, if the eye(s) are not already blinking.
   void blink() {
+    doBlink();
     state.timeToNextBlinkMs = 0;
   }
 
