@@ -27,7 +27,7 @@ private:
   bool autoPupils{};
 
   /// When autoMove is enabled, this represents the maximum amount of time the eyes
-  /// setMaxGazeMs at a particular place before moving again.
+  /// gaze at a particular place before moving again.
   uint32_t maxGazeMs{3000};
 
   /// The amount of fixation to apply
@@ -41,7 +41,7 @@ private:
   /// If autoMove is enabled, periodically initiates motion to a new random point
   /// with a random speed, and holds there for random period until next motion.
   void applyAutoMove(Eye<Disp> &eye) {
-    if (!autoMove) {
+    if (!autoMove && !state.inMotion) {
       eye.x = state.eyeOldX;
       eye.y = state.eyeOldY;
       return;
@@ -215,6 +215,16 @@ private:
 
   float mapToScreen(int value, int mapRadius, int eyeRadius) const {
     return sinf((float) value / (float) mapRadius) * (float) M_PI_2 * (float) eyeRadius;
+  }
+
+  void constrainEyeCoord(float &x, float &y) {
+    // If the coordinate doesn't fit in the unit circle, scale it down
+    auto d2 = x * x + y * y;
+    if (d2 > 1.0f) {
+      auto d = sqrtf(d2);
+      x /= d;
+      y /= d;
+    }
   }
 
   std::pair<float, float> computeEyelids(Eye<Disp> &eye) const {
@@ -470,7 +480,8 @@ private:
   }
 
 public:
-  EyeController(std::array<DisplayDefinition<Disp>, numEyes> displayDefs, bool autoMove, bool autoBlink, bool autoPupils) :
+  EyeController(std::array<DisplayDefinition<Disp>, numEyes> displayDefs, bool autoMove, bool autoBlink,
+                bool autoPupils) :
       autoMove(autoMove), autoBlink(autoBlink), autoPupils(autoPupils) {
     size_t i{};
     for (const auto &dispDef: displayDefs) {
@@ -480,9 +491,7 @@ public:
       eye.blink.state = BlinkState::NotBlinking;
 
       // Start with the eyes looking straight ahead
-      eye.x = eye.definition->polar.mapRadius;
-      eye.y = eye.definition->polar.mapRadius;
-      state.eyeOldX = state.eyeNewX = state.eyeOldY = state.eyeNewY = eye.definition->polar.mapRadius;
+      eye.x = eye.y = state.eyeOldX = state.eyeNewX = state.eyeOldY = state.eyeNewY = eye.definition->polar.mapRadius;
 
       eye.drawAll = true;
     }
@@ -549,28 +558,34 @@ public:
     }
   }
 
-  /// Sets the target pupil location. The eye(s) will smoothly move to this position over time.
-  /// \param xTarget the new x location for the eye(s) to move to, in the range -1.0 (hard left)
-  /// to 1.0 (hard right)
-  /// \param yTarget the new y location for the eye(s) to move to, in the range -1.0 (fully up)
-  /// to 1.0 (fully down)
-  void setPosition(float xTarget, float yTarget) {
-    xTarget = std::max(std::min(xTarget, 1.0f), -1.0f);
-    yTarget = std::max(std::min(yTarget, 1.0f), -1.0f);
-    auto &eye = currentEye();
-    uint16_t offset = eye.definition->polar.mapRadius;
-    // TODO - I don't think this is correct, needs to be scaled up further?
-    float scaleFactor = static_cast<float>(offset * 2) - static_cast<float>(screenWidth * M_PI_2) * 0.9f;
-    eye.x = offset + xTarget * scaleFactor;
-    eye.y = offset + yTarget * scaleFactor;
+  /// Sets the target pupil location. The eye(s) will smoothly move to this position over time. The coordinate
+  /// should fall inside the unit circle. If it falls outside, the closest point on the unit circle's perimeter
+  /// will be used instead.
+  /// \param xTarget the target x location for the eye(s), in the range -1.0 (hard left) to 1.0 (hard right)
+  /// \param yTarget the target y location for the eye(s), in the range -1.0 (fully up) to 1.0 (fully down)
+  void setTargetPosition(float xTarget, float yTarget, int moveDurationMs = 120) {
+    constrainEyeCoord(xTarget, yTarget);
+    Eye<Disp> &eye = currentEye();
+    auto middle = static_cast<float>(eye.definition->polar.mapRadius);
+    auto r = (middle * 2.0f - static_cast<float>(screenWidth) * static_cast<float>(M_PI_2)) * 0.75f;
+    state.eyeNewX = middle - xTarget * r;
+    state.eyeNewY = middle - yTarget * r;
+    state.inMotion = true;
+    state.moveDurationMs = moveDurationMs;
+    state.moveStartTimeMs = millis();
   }
 
-  /// Instantly moves the eye(s) to a given position.
+  /// Instantly moves the eye(s) to a given position. The coordinate should fall inside the unit circle.
+  /// If it falls outside, the closest point on the unit circle's perimeter will be used instead.
   /// \param x the new x location for the eye(s), in the range -1.0 (hard left) to 1.0 (hard right)
   /// \param y the new y location for the eye(s), in the range -1.0 (fully up) to 1.0 (fully down)
-  void setPositionInstant(uint8_t x, uint8_t y) {
-    // TODO - implement me
-    setPosition(x, y);
+  void setPosition(float x, float y) {
+    constrainEyeCoord(x, y);
+    Eye<Disp> &eye = currentEye();
+    auto middle = static_cast<float>(eye.definition->polar.mapRadius);
+    auto r = (middle * 2.0f - static_cast<float>(screenWidth) * static_cast<float>(M_PI_2)) * 0.75f;
+    state.eyeOldX = middle - x * r;
+    state.eyeOldY = middle - y * r;
   }
 
   /// Sets the target pupil size. The pupil will smoothly expand or contract to this size over time.

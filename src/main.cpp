@@ -11,8 +11,10 @@
 
 constexpr uint32_t EYE_DURATION_MS{4'000};
 
-// Set to -1 to disable the blink button
+// Set to -1 to disable the blink button and/or joystick
 constexpr int8_t BLINK_PIN{-1};
+constexpr int8_t JOYSTICK_X_PIN{-1};
+constexpr int8_t JOYSTICK_Y_PIN{-1};
 
 // TFT: use max SPI (clips to 12 MHz on M0)
 constexpr uint32_t SPI_FREQUENCY{48'000'000};
@@ -50,6 +52,10 @@ bool hasBlinkButton() {
   return BLINK_PIN >= 0;
 }
 
+bool hasJoystick() {
+  return JOYSTICK_X_PIN >= 0 && JOYSTICK_Y_PIN >= 0;
+}
+
 /// INITIALIZATION -- runs once at startup ----------------------------------
 void setup() {
   Serial.begin(115200);
@@ -64,13 +70,18 @@ void setup() {
     pinMode(BLINK_PIN, INPUT_PULLUP);
   }
 
+  if (hasJoystick()) {
+    pinMode(JOYSTICK_X_PIN, INPUT);
+    pinMode(JOYSTICK_Y_PIN, INPUT);
+  }
+
   // Create the displays and eye controller
   auto &defs = eyeDefinitions.at(defIndex);
   auto l = new GC9A01A_Display(eyeInfo[0]);
   auto r = new GC9A01A_Display(eyeInfo[1]);
   const DisplayDefinition<GC9A01A_Display> left{l, defs[0]};
   const DisplayDefinition<GC9A01A_Display> right{r, defs[1]};
-  eyes = new EyeController<2, GC9A01A_Display>({left, right}, true, !hasBlinkButton(), true);
+  eyes = new EyeController<2, GC9A01A_Display>({left, right}, !hasJoystick(), !hasBlinkButton(), true);
 }
 
 void nextEye() {
@@ -90,6 +101,13 @@ void loop() {
   // Blink on button press
   if (hasBlinkButton() && digitalRead(BLINK_PIN) == LOW) {
     eyes->blink();
+  }
+
+  // Move eyes with an analog joystick
+  if (hasJoystick()) {
+    auto x = analogRead(JOYSTICK_X_PIN);
+    auto y = analogRead(JOYSTICK_Y_PIN);
+    eyes->setPosition((x - 512) / 512.0f, (y - 512) / 512.0f);
   }
 
   eyes->renderFrame();
