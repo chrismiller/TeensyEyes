@@ -36,6 +36,7 @@ GC9A01A_Display::GC9A01A_Display(const GC9A01A_Config &config) : display(createD
     }
   }
   Serial.println(F("Success"));
+  this->displayNum = displayNum;
   displayNum++;
 }
 
@@ -71,7 +72,8 @@ void GC9A01A_Display::update() {
 
   if (asyncUpdates) {
     if (!display->updateScreenAsync()) {
-      Serial.println(F("updateScreenAsync() failed"));
+      Serial.print(F("updateScreenAsync() failed for display "));
+      Serial.println(displayNum);
     }
   } else {
     display->updateScreen();

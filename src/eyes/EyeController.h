@@ -299,7 +299,7 @@ private:
   /// \param upperFactor How open the upper eyelid is. 0 = fully closed, 1 = fully open.
   /// \param lowerFactor How open the lower eyelid is. 0 = fully closed, 1 = fully open.
   /// \param blinkFactor How much the eye is blinking. 0 = not blinking, 1 = fully blinking (closed).
-  void drawEye(Eye<Disp> &eye, float upperFactor, float lowerFactor, float blinkFactor) {
+  void renderEye(Eye<Disp> &eye, float upperFactor, float lowerFactor, float blinkFactor) {
 
     const uint8_t displacementMapSize = screenWidth / 2;
     const uint16_t mapRadius = eye.definition->polar.mapRadius;
@@ -471,8 +471,6 @@ private:
     } // end scanline
 
     eye.drawAll = false;
-
-    display.update();
   }
 
   Eye<Disp> &currentEye() {
@@ -645,11 +643,11 @@ public:
 
     // Draw the eye. We temporarily flip the X value if this is the right eye, since it is mirrored
     if (eyeIndex == 0) eye.x = eye.definition->polar.mapRadius * 2 - eye.x;
-    drawEye(eye, upperQ, lowerQ, blinkFactor);
+    renderEye(eye, upperQ, lowerQ, blinkFactor);
     // Flip it back
     if (eyeIndex == 0) eye.x = eye.definition->polar.mapRadius * 2 - eye.x;
 
-    // Render the updated eye to its screen
+    // Send the updated eye to its screen
     eye.display->update();
 
     // Advance to the next eye for the next frame

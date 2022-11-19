@@ -23,6 +23,7 @@ class GC9A01A_Display : public Display<GC9A01A_Display> {
 private:
   GC9A01A_t3n* display;
   bool asyncUpdates;
+  int displayNum;
 
 #ifdef SHOW_FPS
   uint32_t framesDrawn{};
