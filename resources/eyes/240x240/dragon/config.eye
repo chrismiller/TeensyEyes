@@ -4,8 +4,8 @@
   "backColor"  : 0,
   "pupil" : {
     "color"      : 0,
-	"min"        : 0.1,
-	"max"        : 0.2,
+    "min"        : 0.1,
+    "max"        : 0.2,
     "slitRadius" : 90
   },
   "iris" : {

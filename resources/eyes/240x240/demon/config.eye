@@ -6,7 +6,7 @@
   "pupil" : {
     "color"      : 0,
     "slitRadius" : 100,
-    "min"        : 0.05,
+    "min"        : 0.1,
     "max"        : 0.25
   },
   "iris" : {

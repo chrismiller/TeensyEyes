@@ -3721,7 +3721,7 @@ namespace demon {
 
   const EyeDefinition left PROGMEM = {
       125, 20480, false, 0.5, disp_240_125, 
-      { 0, 100, 0.05, 0.25 },
+      { 0, 100, 0.1, 0.25 },
       { 110, { leftIris, leftIrisWidth, leftIrisHeight }, 0, 0, -18, 0, 0 },
       { { leftSclera, leftScleraWidth, leftScleraHeight }, 0, 0, 0, 0, 0 },
       { leftUpper, leftLower, 0 },
@@ -3729,7 +3729,7 @@ namespace demon {
   };
   const EyeDefinition right PROGMEM = {
       125, 20480, false, 0.5, disp_240_125, 
-      { 0, 100, 0.05, 0.25 },
+      { 0, 100, 0.1, 0.25 },
       { 110, { leftIris, leftIrisWidth, leftIrisHeight }, 0, 0, 18, 0, 0 },
       { { leftSclera, leftScleraWidth, leftScleraHeight }, 0, 0, 0, 0, 0 },
       { leftUpper, leftLower, 0 },

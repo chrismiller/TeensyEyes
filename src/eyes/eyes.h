@@ -32,7 +32,7 @@ struct OverallState {
 
   // Variables for keeping track of the pupil size
   uint16_t irisFrame{};
-  float irisValue{0.5f};
+  float pupilAmount{0.5f};  // 0 (smallest) to 1 (largest)
 
   int fixate{7};
 };
@@ -50,20 +50,31 @@ struct EyeBlink {
 };
 
 struct PupilParams {
-  const uint16_t color{};        // 16-bit 565 RGB, big-endian
-  const uint16_t slitRadius{};   // Slit radius, in pixels. Use zero for a round pupil
+  /// 16-bit 565 RGB, big-endian
+  const uint16_t color{};
+  /// Slit radius, in pixels. Use zero for a round pupil
+  const uint16_t slitRadius{};
+  /// The minimum size of the pupil, as a ratio of the iris size
   const float min{0.2};
+  /// The maximum size of the pupil, as a ratio of the iris size
   const float max{0.8};
 };
 
 struct IrisParams {
-  const uint16_t radius{60};    // Iris radius, in pixels
+  /// Iris radius, in pixels
+  const uint16_t radius{60};
+  /// The iris texture image. Optional.
   const Image texture{};
-  const uint16_t color{};       // 16-bit 565 RGB, big-endian
-  const uint16_t startAngle{};  // Initial rotation, 0-1023 CCW
-  const float spin{};           // RPM * 1024.0
-  const uint16_t iSpin{};       // Per-frame fixed integer spin. If set, this overrides 'spin'
-  const uint16_t mirror{};      // 0 = normal, 1023 = flip the X axis
+  /// The iris color, used if no texture is set. 16-bit 565 RGB, big-endian
+  const uint16_t color{};
+  /// Initial rotation, 0-1023 CCW
+  const uint16_t startAngle{};
+  /// How quickly to rotate the iris image (RPM * 1024.0). Zero disables any animation.
+  const float spin{};
+  /// Per-frame fixed integer spin, instead of time-based. If set, this overrides 'spin'.
+  const uint16_t iSpin{};
+  /// Controls mirroring of the iris image. 0 = normal, 1023 = flip the X axis.
+  const uint16_t mirror{};
 
   bool hasTexture() const {
     return texture.data != nullptr;
@@ -71,12 +82,18 @@ struct IrisParams {
 };
 
 struct ScleraParams {
+  /// The sclera texture image. Optional.
   const Image texture{};
-  const uint16_t color{};       // 16-bit 565 RGB, big-endian
-  const uint16_t startAngle{};  // Initial rotation, 0-1023 CCW
-  const float spin{};           // RPM * 1024.0
-  const uint16_t iSpin{};       // Per-frame fixed integer spin. If set, this overrides 'spin'
-  const uint16_t mirror{};      // 0 = normal, 1023 = flip the X axis
+  /// The sclera color, used if no texture is set. 16-bit 565 RGB, big-endian.
+  const uint16_t color{};
+  /// Initial rotation, 0-1023 CCW.
+  const uint16_t startAngle{};
+  /// How quickly to rotate the sclera image (RPM * 1024.0). Zero disables any animation.
+  const float spin{};
+  /// Per-frame fixed integer spin, instead of time-based. If set, this overrides 'spin'.
+  const uint16_t iSpin{};
+  /// Controls mirroring of the sclera image. 0 = normal, 1023 = flip the X axis.
+  const uint16_t mirror{};
 
   bool hasTexture() const {
     return texture.data != nullptr;
@@ -84,9 +101,12 @@ struct ScleraParams {
 };
 
 struct EyelidParams {
+  /// An array of bytes that specify the top and bottom limits of the upper eyelid at each X coordinate.
   const uint8_t *upper{};
+  /// An array of bytes that specify the top and bottom limits of the lower eyelid at each X coordinate.
   const uint8_t *lower{};
-  const uint16_t color{};   // 16-bit 565 RGB, big-endian
+  /// The color of the eyelid. 16-bit 565 RGB, big-endian.
+  const uint16_t color{};
 
   inline uint8_t upperOpen(uint8_t x) const __attribute__((always_inline)) {
     return upper[x * 2];

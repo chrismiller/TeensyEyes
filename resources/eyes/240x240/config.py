@@ -29,7 +29,7 @@ class PupilConfig:
     :return:
     """
     return cls(_toInt(params.get('color', 0)), _toInt(params.get('slitRadius', 0)),
-               float(params.get('min', 0.0)), float(params.get('max', 1.0)))
+               float(params.get('min', 0.3)), float(params.get('max', 0.7)))
 
 
 class IrisConfig:

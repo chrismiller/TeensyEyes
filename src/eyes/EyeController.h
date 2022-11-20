@@ -113,12 +113,12 @@ private:
   }
 
   /// If autoPupils is enabled, periodically triggers a change in size of the pupils.
-  void applyAutoPupils(const Eye<Disp> &eye) {
+  void applyAutoPupils() {
     if (!autoPupils) {
       return;
     }
     // Automated pupil resizing. Use autonomous iris w/fractal subdivision
-    float n, sum = 0.5f;
+    float n, sum{0.5f};
     for (uint16_t i = 0; i < irisLevels; i++) {
       uint16_t iexp = 1 << (i + 1);         // 2,4,8,16,...
       uint16_t imask = (iexp - 1);          // 2^i-1 (1,3,7,15,...)
@@ -134,10 +134,7 @@ private:
       iexp = 1 << (irisLevels - i); // ...8,4,2,1
       sum += n / (float) iexp;
     }
-
-    const float irisMin = 1.0f - eye.definition->pupil.max;
-    const float irisRange = eye.definition->pupil.max - eye.definition->pupil.min;
-    state.irisValue = irisMin + sum * irisRange;
+    setPupil(sum);
 
     if ((++state.irisFrame) >= (1 << irisLevels)) {
       state.irisFrame = 0;
@@ -313,8 +310,15 @@ private:
     bool hasScleraTexture = eye.definition->sclera.hasTexture();
     bool hasIrisTexture = eye.definition->iris.hasTexture();
 
-    const int pupilCheck = hasIrisTexture ? eye.definition->iris.texture.height : 1;
-    const int iPupilFactor = (int) ((float) pupilCheck * 256 * (1.0 / state.irisValue));
+    const float pupilRange = eye.definition->pupil.max - eye.definition->pupil.min;
+    const float irisValue = 1.0f - (eye.definition->pupil.min + pupilRange * state.pupilAmount);
+    const int irisTextureHeight = hasIrisTexture ? eye.definition->iris.texture.height : 1;
+    // We scale this up to give us more precision but still use integer maths in the inner loop.
+    // The 126 is the maximum distance value we can expect from the polar distance map.
+    const int iPupilFactor = static_cast<int>(32768.0f / 126.0f * irisTextureHeight / irisValue);
+    // We scale up by 126 and add 128 to match the 128-254 range of the distance map. It means a bit
+    // less math in the inner loop.
+    const int irisSize = static_cast<int>(126.0f * irisValue) + 128;
 
     // Dampen the eyelid movement a bit
     upperFactor = eye.upperLidFactor * 0.7f + upperFactor * 0.3f;
@@ -439,8 +443,7 @@ private:
                 }
               } else if (distance < 255) {
                 // Either the iris or pupil
-                const int ty = (distance - 128) * iPupilFactor / 32768;
-                if (ty >= pupilCheck) {
+                if (distance >= irisSize) {
                   // Pupil
                   p = eye.definition->pupil.color;
                 } else {
@@ -448,6 +451,7 @@ private:
                   if (hasIrisTexture) {
                     angle = ((angle + eye.currentIrisAngle) & 1023) ^ eye.definition->iris.mirror;
                     const int tx = (angle & 1023) * eye.definition->iris.texture.width / 1024;
+                    const int ty = (distance - 128) * iPupilFactor / 32768;
                     p = eye.definition->iris.texture.get(tx, ty);
                   } else {
                     p = eye.definition->iris.color;
@@ -586,22 +590,21 @@ public:
     state.eyeOldY = middle - y * r;
   }
 
-  /// Sets the target pupil size. The pupil will smoothly expand or contract to this size over time.
+  /// Sets the target pupil size. The pupils will smoothly expand or contract to this size over time.
+  /// \param ratio a value between 0 and 1, where 0 is the smallest permissible pupil size,
+  /// 1 is the largest.
+  void setTargetPupil(float ratio) {
+    // TODO - implement me
+    setPupil(ratio);
+  }
+
+  /// Instantly resizes the pupils to the specified size. In real eyes, both pupils react
+  /// even if only a single eye is stimulated, hence why this API doesn't provide a way to
+  /// resize the pupil of just a single eye.
   /// \param ratio a value between 0 and 1, where 0 is the smallest permissible pupil size,
   /// 1 is the largest.
   void setPupil(float ratio) {
-    // TODO - implement me
-//  const float irisMin = 1.0f - eye.definition->pupil.max;
-//  const float irisRange = eye.definition->pupil.max - eye.definition->pupil.min;
-//  state.irisValue = irisMin + sum * irisRange;
-    state.irisValue = ratio;
-  }
-
-  /// Instantly resizes the pupil to the specified size.
-  /// \param ratio a value between 0 and 1, where 0 is the smallest permissible pupil size,
-  /// 1 is the largest.
-  void setPupilInstant(float ratio) {
-    // TODO - implement me
+    state.pupilAmount = max(0.0f, min(1.0f, ratio));
   }
 
   /// Updates the definitions of the eyes.
@@ -629,7 +632,7 @@ public:
     // Apply any automated eye/eyelid/pupil movements
     applyAutoMove(eye);
     applyAutoBlink();
-    applyAutoPupils(eye);
+    applyAutoPupils();
 
     // Apply any time-based changes
     auto blinkFactor = updateBlinkState(eye);
