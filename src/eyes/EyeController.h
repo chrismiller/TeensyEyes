@@ -313,9 +313,9 @@ private:
     const float pupilRange = eye.definition->pupil.max - eye.definition->pupil.min;
     const float irisValue = 1.0f - (eye.definition->pupil.min + pupilRange * state.pupilAmount);
     const int irisTextureHeight = hasIrisTexture ? eye.definition->iris.texture.height : 1;
-    // We scale this up to give us more precision but still use integer maths in the inner loop.
+    // We scale this up by 32768 to give us more precision but still use integer maths in the inner loop.
     // The 126 is the maximum distance value we can expect from the polar distance map.
-    const int iPupilFactor = static_cast<int>(32768.0f / 126.0f * irisTextureHeight / irisValue);
+    int iPupilFactor = static_cast<int>(32768.0f / 126.0f * (irisTextureHeight - 1) / irisValue);
     // We scale up by 126 and add 128 to match the 128-254 range of the distance map. It means a bit
     // less math in the inner loop.
     const int irisSize = static_cast<int>(126.0f * irisValue) + 128;
