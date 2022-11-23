@@ -18,7 +18,7 @@ struct Image {
 /// Global state that applies to all eyes (not per-eye)
 struct OverallState {
   /// Whether the eyes are currently in motion
-  bool inMotion{false};
+  bool inMotion{};
   float eyeOldX{};
   float eyeOldY{};
   float eyeNewX{};
@@ -33,6 +33,11 @@ struct OverallState {
   // Variables for keeping track of the pupil size
   uint16_t irisFrame{};
   float pupilAmount{0.5f};  // 0 (smallest) to 1 (largest)
+  bool resizing{};
+  float resizeStart{};
+  float resizeTarget{};
+  uint32_t resizeStartTimeMs{};
+  uint32_t resizeDurationMs{};
 
   int fixate{7};
 };

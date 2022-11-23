@@ -112,11 +112,28 @@ private:
     }
   }
 
+  /// If autoPupils is disabled, manages any pupil resizing triggered by calls to setTargetPupil().
   /// If autoPupils is enabled, periodically triggers a change in size of the pupils.
   void applyAutoPupils() {
-    if (!autoPupils) {
+    if (!autoPupils && !state.resizing) {
       return;
     }
+
+    if (state.resizing) {
+      uint32_t t = millis();
+
+      // milliseconds elapsed since resize was called
+      uint32_t dt = t - state.resizeStartTimeMs;
+      if (dt < state.resizeDurationMs) {
+        float fraction = static_cast<float>(dt) / static_cast<float>(state.resizeDurationMs);
+        state.pupilAmount = state.resizeStart + fraction * (state.resizeTarget - state.resizeStart);
+      } else {
+        state.resizing = false;
+        state.pupilAmount = state.resizeTarget;
+      }
+      return;
+    }
+
     // Automated pupil resizing. Use autonomous iris w/fractal subdivision
     float n, sum{0.5f};
     for (uint16_t i = 0; i < irisLevels; i++) {
@@ -565,8 +582,8 @@ public:
   /// will be used instead.
   /// \param xTarget the target x location for the eye(s), in the range -1.0 (hard left) to 1.0 (hard right)
   /// \param yTarget the target y location for the eye(s), in the range -1.0 (fully up) to 1.0 (fully down)
-  /// \param moveDurationMs the number of milliseconds the eye will take to arrive at the target location
-  void setTargetPosition(float xTarget, float yTarget, int moveDurationMs = 120) {
+  /// \param durationMs the number of milliseconds the eye will take to arrive at the target location
+  void setTargetPosition(float xTarget, float yTarget, int durationMs = 120) {
     constrainEyeCoord(xTarget, yTarget);
     Eye<Disp> &eye = currentEye();
     auto middle = static_cast<float>(eye.definition->polar.mapRadius);
@@ -574,7 +591,7 @@ public:
     state.eyeNewX = middle - xTarget * r;
     state.eyeNewY = middle - yTarget * r;
     state.inMotion = true;
-    state.moveDurationMs = moveDurationMs;
+    state.moveDurationMs = durationMs;
     state.moveStartTimeMs = millis();
   }
 
@@ -594,9 +611,12 @@ public:
   /// Sets the target pupil size. The pupils will smoothly expand or contract to this size over time.
   /// \param ratio a value between 0 and 1, where 0 is the smallest permissible pupil size,
   /// 1 is the largest.
-  void setTargetPupil(float ratio) {
-    // TODO - implement me
-    setPupil(ratio);
+  void setTargetPupil(float ratio, int durationMs = 100) {
+    state.resizing = true;
+    state.resizeStart = state.pupilAmount;
+    state.resizeTarget = ratio;
+    state.resizeDurationMs = durationMs;
+    state.resizeStartTimeMs = millis();
   }
 
   /// Instantly resizes the pupils to the specified size. In real eyes, both pupils react
