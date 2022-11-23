@@ -565,6 +565,7 @@ public:
   /// will be used instead.
   /// \param xTarget the target x location for the eye(s), in the range -1.0 (hard left) to 1.0 (hard right)
   /// \param yTarget the target y location for the eye(s), in the range -1.0 (fully up) to 1.0 (fully down)
+  /// \param moveDurationMs the number of milliseconds the eye will take to arrive at the target location
   void setTargetPosition(float xTarget, float yTarget, int moveDurationMs = 120) {
     constrainEyeCoord(xTarget, yTarget);
     Eye<Disp> &eye = currentEye();
