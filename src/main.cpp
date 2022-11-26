@@ -8,6 +8,7 @@
 #include "util/logging.h"
 #include "eyes/EyeController.h"
 #include "displays/GC9A01A_Display.h"
+#include "LightSensor.h"
 
 constexpr uint32_t EYE_DURATION_MS{4'000};
 
@@ -15,6 +16,7 @@ constexpr uint32_t EYE_DURATION_MS{4'000};
 constexpr int8_t BLINK_PIN{-1};
 constexpr int8_t JOYSTICK_X_PIN{-1};
 constexpr int8_t JOYSTICK_Y_PIN{-1};
+constexpr int8_t LIGHT_PIN{-1};
 
 // TFT: use max SPI (clips to 12 MHz on M0)
 constexpr uint32_t SPI_FREQUENCY{48'000'000};
@@ -48,8 +50,14 @@ static uint32_t defIndex{0};
 
 EyeController<2, GC9A01A_Display> *eyes{};
 
+LightSensor lightSensor(LIGHT_PIN);
+
 bool hasBlinkButton() {
   return BLINK_PIN >= 0;
+}
+
+bool hasLightSensor() {
+  return LIGHT_PIN >= 0;
 }
 
 bool hasJoystick() {
@@ -81,7 +89,7 @@ void setup() {
   auto r = new GC9A01A_Display(eyeInfo[1]);
   const DisplayDefinition<GC9A01A_Display> left{l, defs[0]};
   const DisplayDefinition<GC9A01A_Display> right{r, defs[1]};
-  eyes = new EyeController<2, GC9A01A_Display>({left, right}, !hasJoystick(), !hasBlinkButton(), true);
+  eyes = new EyeController<2, GC9A01A_Display>({left, right}, !hasJoystick(), !hasBlinkButton(), !hasLightSensor());
 }
 
 void nextEye() {
@@ -108,6 +116,12 @@ void loop() {
     auto x = analogRead(JOYSTICK_X_PIN);
     auto y = analogRead(JOYSTICK_Y_PIN);
     eyes->setPosition((x - 512) / 512.0f, (y - 512) / 512.0f);
+  }
+
+  if (hasLightSensor()) {
+    lightSensor.readDamped([](float value) {
+      eyes->setPupil(value);
+    });
   }
 
   eyes->renderFrame();
