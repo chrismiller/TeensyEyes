@@ -50,8 +50,8 @@ void setup() {
 
   // Create the displays and eye controller
   auto &defs = eyeDefinitions.at(defIndex);
-  auto l = new GC9A01A_Display(eyeInfo[0]);
-  auto r = new GC9A01A_Display(eyeInfo[1]);
+  auto l = new GC9A01A_Display(eyeInfo[0], SPI_SPEED);
+  auto r = new GC9A01A_Display(eyeInfo[1], SPI_SPEED);
   const DisplayDefinition<GC9A01A_Display> left{l, defs[0]};
   const DisplayDefinition<GC9A01A_Display> right{r, defs[1]};
   eyes = new EyeController<2, GC9A01A_Display>({left, right}, !hasJoystick(), !hasBlinkButton(), !hasLightSensor());

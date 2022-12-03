@@ -32,7 +32,12 @@ private:
 #endif
 
 public:
-  explicit GC9A01A_Display(const GC9A01A_Config &config);
+  /// Creates a generic wrapper for a 240x240 GC9A01A round display screen.
+  /// \param config the screen's configuration.
+  /// \param spiSpeed the speed of the SPI bus. For maximum performance, set this as high as you can get
+  /// away with. It will depend on the displays themselves, wire lengths, shielding/interference etc. My
+  /// setup works up to about 90,000,000. At 100,000,000 I start seeing corruption on the displays.
+  GC9A01A_Display(const GC9A01A_Config &config, const uint32_t spiSpeed = 30'000'000);
 
   virtual ~GC9A01A_Display();
 

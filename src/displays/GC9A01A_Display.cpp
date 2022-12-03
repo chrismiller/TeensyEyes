@@ -10,8 +10,8 @@ GC9A01A_t3n *createDisplay(const GC9A01A_Config &config) {
   return new GC9A01A_t3n(config.cs, config.dc, config.rst, config.mosi, config.sck);
 }
 
-GC9A01A_Display::GC9A01A_Display(const GC9A01A_Config &config) : display(createDisplay(config)),
-                                                                 asyncUpdates(config.asyncUpdates) {
+GC9A01A_Display::GC9A01A_Display(const GC9A01A_Config &config, uint32_t spiSpeed) :
+    display(createDisplay(config)), asyncUpdates(config.asyncUpdates) {
   static size_t displayNum{};
   Serial.print(F("Init GC9A01A display #"));
   Serial.print(displayNum);
@@ -19,7 +19,8 @@ GC9A01A_Display::GC9A01A_Display(const GC9A01A_Config &config) : display(createD
   Serial.print(config.rotation);
   Serial.print(F(", mirror="));
   Serial.println(config.mirror);
-  display->begin();
+  display->updateChangedAreasOnly(true);
+  display->begin(spiSpeed);
   display->setRotation(config.rotation);
   if (config.mirror) {
     const std::array<uint8_t, 4> mirrorTFT{0x8, 0x20, 0x40, 0xE0}; // Mirror + rotate
