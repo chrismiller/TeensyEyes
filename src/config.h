@@ -24,6 +24,29 @@
 
 #include "displays/GC9A01A_Display.h"
 
+// A list of all the different eye definitions we want to use
+std::array<std::array<EyeDefinition, 2>, 13> eyeDefinitions{{
+//                                                               {anime::eye, anime::eye},
+                                                               {bigBlue::eye, bigBlue::eye},
+                                                               {brown::eye, brown::eye},
+                                                               {cat::eye, cat::eye},
+                                                               {demon::left, demon::right},
+                                                               {doe::left, doe::right},
+                                                               {doomRed::eye, doomRed::eye},
+                                                               {doomSpiral::left, doomSpiral::right},
+                                                               {dragon::eye, dragon::eye},
+//                                                               {fish::eye, fish::eye},
+                                                               {fizzgig::eye, fizzgig::eye},
+//                                                               {hazel::eye, hazel::eye},
+                                                               {hypnoRed::eye, hypnoRed::eye},
+//                                                               {newt::eye, newt::eye},
+                                                               {skull::eye, skull::eye},
+                                                               {snake::eye, snake::eye},
+//                                                                {spikes::eye, spikes::eye}
+                                                               {toonstripe::eye, toonstripe::eye},
+                                                           }
+};
+
 // DISPLAY HARDWARE SETTINGS (screen type & connections) -------------------
 
 // Define the pins used for each display. If multiple displays use the same reset pin,
@@ -37,3 +60,11 @@ GC9A01A_Config eyeInfo[] = {
     {0,  2, 26, 27, 3, 0, true,  true, true}, // Left display
     {10, 9, 11, 13, 8, 0, false, true, true}, // Right display
 };
+
+constexpr uint32_t EYE_DURATION_MS{4'000};
+
+// Set to -1 to disable the blink button and/or joystick
+constexpr int8_t BLINK_PIN{-1};
+constexpr int8_t JOYSTICK_X_PIN{-1};
+constexpr int8_t JOYSTICK_Y_PIN{-1};
+constexpr int8_t LIGHT_PIN{-1};
