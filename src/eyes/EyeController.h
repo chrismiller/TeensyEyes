@@ -175,6 +175,14 @@ private:
     return blinkDuration;
   }
 
+  void updateDefinition(Eye<Disp> &eye, const EyeDefinition &def) {
+    eye.definition = &def;
+    eye.currentIrisAngle = def.iris.startAngle;
+    eye.currentScleraAngle = def.sclera.startAngle;
+    // Draw the entire eye (including eyelids) on the first frame, to clean up from the previous eye
+    eye.drawAll = true;
+  }
+
   /// If autoBlink is enabled, periodically starts the eyes blinking.
   void applyAutoBlink() {
     if (!autoBlink) {
@@ -553,14 +561,6 @@ public:
   /// \param maxGazeMillis the maximum time to look in a single direction, in milliseconds.
   void setMaxGazeMs(uint32_t maxGazeMillis) {
     maxGazeMs = maxGazeMillis;
-  }
-
-  void updateDefinition(Eye<Disp> &eye, const EyeDefinition &def) {
-    eye.definition = &def;
-    eye.currentIrisAngle = def.iris.startAngle;
-    eye.currentScleraAngle = def.sclera.startAngle;
-    // Draw the entire eye (including eyelids) on the first frame
-    eye.drawAll = true;
   }
 
   /// Starts the blink process, if the eye(s) are not already blinking.
