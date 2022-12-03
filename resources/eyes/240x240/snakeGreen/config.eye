@@ -4,8 +4,8 @@
   "backColor"  : "0x4800",
   "pupil" : {
     "color"      : "0x00A2",
-    "min"        : 0.2,
-    "max"        : 0.5,
+    "min"        : 0.15,
+    "max"        : 0.35,
     "slitRadius" : 90
   },
   "iris" : {
