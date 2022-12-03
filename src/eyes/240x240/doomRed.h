@@ -941,7 +941,7 @@ namespace doomRed {
   };
 
   const EyeDefinition eye PROGMEM = {
-      125, 42260, true, 0.3, disp_240_125, 
+      "doomRed", 125, 42260, true, 0.3, disp_240_125,
       { 0, 0, 0.15, 0.4 },
       { 50, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },

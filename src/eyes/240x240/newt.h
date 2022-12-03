@@ -5203,7 +5203,7 @@ namespace newt {
   };
 
   const EyeDefinition eye PROGMEM = {
-      125, 34493, true, 0.7, disp_240_125, 
+      "newt", 125, 34493, true, 0.7, disp_240_125,
       { 0, 0, 0.2, 0.6 },
       { 60, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },

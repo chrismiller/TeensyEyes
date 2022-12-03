@@ -3976,7 +3976,7 @@ namespace anime {
   };
 
   const EyeDefinition eye PROGMEM = {
-      130, 56952, true, 0.1, disp_240_130, 
+      "anime", 130, 56952, true, 0.1, disp_240_130,
       { 0, 0, 0.3, 0.4 },
       { 95, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 512, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },

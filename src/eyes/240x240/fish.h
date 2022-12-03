@@ -7146,7 +7146,7 @@ namespace fish {
   };
 
   const EyeDefinition eye PROGMEM = {
-      120, 0, true, 0.5, disp_240_120, 
+      "fish", 120, 0, true, 0.5, disp_240_120,
       { 0, 0, 0.4, 0.5 },
       { 115, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },

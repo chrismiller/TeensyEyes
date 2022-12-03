@@ -75,7 +75,7 @@ namespace cat {
   };
 
   const EyeDefinition eye PROGMEM = {
-      125, 65504, true, 0.5, disp_240_125, 
+      "cat", 125, 65504, true, 0.5, disp_240_125,
       { 0, 90, 0.3, 0.4 },
       { 90, { nullptr, 0, 0 }, 65504, 0, 0, 0, 0 },
       { { nullptr, 0, 0 }, 65504, 0, 0, 0, 0 },

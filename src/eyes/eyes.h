@@ -169,6 +169,7 @@ struct PolarParams {
 };
 
 struct EyeDefinition {
+  char name[16];            // The name of the eye, useful for logging/debugging
   uint16_t radius{120};     // Eye radius, in pixels
   uint16_t backColor{};     // 16-bit 565 RGB, big-endian
   bool tracking{false};     // Whether the eyelids 'track' the pupils or not

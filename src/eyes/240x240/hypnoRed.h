@@ -5543,7 +5543,7 @@ namespace hypnoRed {
   };
 
   const EyeDefinition eye PROGMEM = {
-      125, 18432, true, 0.1, disp_240_125, 
+      "hypnoRed", 125, 18432, true, 0.1, disp_240_125,
       { 162, 0, 0.3, 0.4 },
       { 100, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { nullptr, 0, 0 }, 20642, 0, 0, 0, 0 },

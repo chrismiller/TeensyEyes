@@ -12149,7 +12149,7 @@ namespace skull {
   };
 
   const EyeDefinition eye PROGMEM = {
-      120, 0, true, 0.5, disp_240_120, 
+      "skull", 120, 0, true, 0.5, disp_240_120,
       { 0, 0, 0.1, 0.25 },
       { 70, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },

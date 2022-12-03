@@ -5543,7 +5543,7 @@ namespace snake {
   };
 
   const EyeDefinition eye PROGMEM = {
-      125, 18432, true, 0.5, disp_240_125, 
+      "snake", 125, 18432, true, 0.5, disp_240_125,
       { 162, 90, 0.2, 0.5 },
       { 90, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { nullptr, 0, 0 }, 65322, 0, 0, 0, 0 },

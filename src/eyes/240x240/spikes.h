@@ -10797,7 +10797,7 @@ namespace spikes {
   };
 
   const EyeDefinition eye PROGMEM = {
-      125, 0, true, 0.5, disp_240_125, 
+      "spikes", 125, 0, true, 0.5, disp_240_125,
       { 0, 0, 0.3, 0.7 },
       { 75, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },

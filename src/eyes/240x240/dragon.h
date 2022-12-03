@@ -3495,7 +3495,7 @@ namespace dragon {
   };
 
   const EyeDefinition eye PROGMEM = {
-      125, 0, true, 0.5, disp_240_125, 
+      "dragon", 125, 0, true, 0.5, disp_240_125,
       { 0, 90, 0.1, 0.2 },
       { 90, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { nullptr, 0, 0 }, 0, 0, 0, 0, 0 },

@@ -1795,7 +1795,7 @@ namespace doe {
   };
 
   const EyeDefinition left PROGMEM = {
-      130, 0, true, 0.3, disp_240_130, 
+      "doe", 130, 0, true, 0.3, disp_240_130,
       { 0, 0, 0.3, 0.4 },
       { 95, { leftIris, leftIrisWidth, leftIrisHeight }, 0, 0, 0, 0, 0 },
       { { leftSclera, leftScleraWidth, leftScleraHeight }, 0, 0, 0, 0, 0 },
@@ -1803,7 +1803,7 @@ namespace doe {
       { 240, polarAngle_240, polarDist_240_130_95_0 }
   };
   const EyeDefinition right PROGMEM = {
-      130, 0, true, 0.3, disp_240_130, 
+      "doe", 130, 0, true, 0.3, disp_240_130,
       { 0, 0, 0.3, 0.4 },
       { 95, { leftIris, leftIrisWidth, leftIrisHeight }, 0, 0, 0, 0, 1023 },
       { { leftSclera, leftScleraWidth, leftScleraHeight }, 0, 0, 0, 0, 0 },

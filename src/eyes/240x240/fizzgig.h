@@ -92,7 +92,7 @@ namespace fizzgig {
   };
 
   const EyeDefinition eye PROGMEM = {
-      130, 14627, false, 0.5, disp_240_130, 
+      "fizzgig", 130, 14627, false, 0.5, disp_240_130,
       { 0, 0, 0.15, 0.35 },
       { 115, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { nullptr, 0, 0 }, 14627, 0, 0, 0, 0 },

@@ -398,7 +398,7 @@ def outputConfig(out: TextIO, config: EyeConfig, mapRadius: int, dispMapName: st
   """
   Writes out the C++ EyeDefinition
   EyeDefinition {configName} = {
-      radius, backColor, tracking, squint, dispMapName,
+      name, radius, backColor, tracking, squint, dispMapName,
       {color, slitRadius, min, max},
       {irisRadius, {irisTexture, irisWidth, irisHeight}, irisColor, irisSpin, iSpin, mirror},
       {{scleraTexture, scleraWidth, scleraHeight}, scleraColor, scleraSpin, iSpin, mirror},
@@ -407,13 +407,13 @@ def outputConfig(out: TextIO, config: EyeConfig, mapRadius: int, dispMapName: st
   };
   """
 
-  configName = config.name.split('.', 1)[-1]
+  eyeName, configName = config.name.split('.', 1)
 
   upper = filenameMappings.get(config.eyelid.upperFilename, f'noUpper_{config.radius}')
   lower = filenameMappings.get(config.eyelid.lowerFilename, f'noLower_{config.radius}')
 
   out.write(f'  const EyeDefinition {configName} PROGMEM = {{\n')
-  out.write(f'      {config.radius}, {config.backColor}, {str(config.tracking).lower()}, {config.squint}, {dispMapName}, \n')
+  out.write(f'      "{eyeName[:15]}", {config.radius}, {config.backColor}, {str(config.tracking).lower()}, {config.squint}, {dispMapName},\n')
   out.write(f'      {{ {config.pupil.color}, {config.pupil.slitRadius}, {config.pupil.min}, {config.pupil.max} }},\n')
   if config.iris.filename is None:
     irisDef = 'nullptr, 0, 0'
