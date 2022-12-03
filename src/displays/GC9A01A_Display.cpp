@@ -42,7 +42,10 @@ GC9A01A_Display::GC9A01A_Display(const GC9A01A_Config &config, uint32_t spiSpeed
 }
 
 GC9A01A_Display::~GC9A01A_Display() {
-  delete display;
+  // TODO: this looks like a bug in GC9A01A_t3n, it is meant to have a virtual destructor.
+  //  about the best we can do is just free the frame buffer :-/
+  // delete display;
+  display->freeFrameBuffer();
 }
 
 void GC9A01A_Display::drawPixel(int16_t x, int16_t y, uint16_t color565) {
