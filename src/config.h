@@ -16,6 +16,7 @@
 #include "eyes/240x240/fizzgig.h"
 //#include "eyes/240x240/hazel.h"
 #include "eyes/240x240/hypnoRed.h"
+//#include "eyes/240x240/leopard.h"
 //#include "eyes/240x240/newt.h"
 #include "eyes/240x240/skull.h"
 #include "eyes/240x240/snake.h"
@@ -39,6 +40,7 @@ std::array<std::array<EyeDefinition, 2>, 13> eyeDefinitions{{
                                                                {fizzgig::eye, fizzgig::eye},
 //                                                               {hazel::eye, hazel::eye},
                                                                {hypnoRed::eye, hypnoRed::eye},
+//                                                               {leopard::left, leopard::right},
 //                                                               {newt::eye, newt::eye},
                                                                {skull::eye, skull::eye},
                                                                {snake::eye, snake::eye},
