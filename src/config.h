@@ -23,6 +23,7 @@
 //#include "eyes/240x240/spikes.h"
 #include "eyes/240x240/toonstripe.h"
 
+#include "eyes/EyeController.h"
 #include "displays/GC9A01A_Display.h"
 
 // A list of all the different eye definitions we want to use
@@ -75,3 +76,15 @@ constexpr int8_t BLINK_PIN{-1};
 constexpr int8_t JOYSTICK_X_PIN{-1};
 constexpr int8_t JOYSTICK_Y_PIN{-1};
 constexpr int8_t LIGHT_PIN{-1};
+
+EyeController<2, GC9A01A_Display> *eyes{};
+
+void initEyes(bool autoMove, bool autoBlink, bool autoPupils) {
+  // Create the displays and eye controller
+  auto &defs = eyeDefinitions.at(0);
+  auto l = new GC9A01A_Display(eyeInfo[0], SPI_SPEED);
+  auto r = new GC9A01A_Display(eyeInfo[1], SPI_SPEED);
+  const DisplayDefinition<GC9A01A_Display> left{l, defs[0]};
+  const DisplayDefinition<GC9A01A_Display> right{r, defs[1]};
+  eyes = new EyeController<2, GC9A01A_Display>({left, right}, autoMove, autoBlink, autoPupils);
+}

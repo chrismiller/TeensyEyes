@@ -6,14 +6,10 @@
 
 #include "config.h"
 #include "util/logging.h"
-#include "eyes/EyeController.h"
-#include "displays/GC9A01A_Display.h"
 #include "LightSensor.h"
 
 // The index of the currently selected eye definitions
 static uint32_t defIndex{0};
-
-EyeController<2, GC9A01A_Display> *eyes{};
 
 LightSensor lightSensor(LIGHT_PIN);
 
@@ -48,13 +44,7 @@ void setup() {
     pinMode(JOYSTICK_Y_PIN, INPUT);
   }
 
-  // Create the displays and eye controller
-  auto &defs = eyeDefinitions.at(defIndex);
-  auto l = new GC9A01A_Display(eyeInfo[0], SPI_SPEED);
-  auto r = new GC9A01A_Display(eyeInfo[1], SPI_SPEED);
-  const DisplayDefinition<GC9A01A_Display> left{l, defs[0]};
-  const DisplayDefinition<GC9A01A_Display> right{r, defs[1]};
-  eyes = new EyeController<2, GC9A01A_Display>({left, right}, !hasJoystick(), !hasBlinkButton(), !hasLightSensor());
+  initEyes(!hasJoystick(), !hasBlinkButton(), !hasLightSensor());
 }
 
 void nextEye() {
