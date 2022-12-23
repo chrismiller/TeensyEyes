@@ -16,17 +16,10 @@ This codebase is based on code and ideas from the following projects:
 ### Building and Running
 
 This project is developed with PlatformIO and (optionally) CLion.
-Before you build and run it for the first time, you will need to first run the following from within the TeensyEyes directory:
-```
-mkdir lib
-cd lib
-git clone https://github.com/mjs513/GC9A01A_t3n
-```
-This will check out the [GC9A01A_t3n library](https://github.com/mjs513/GC9A01A_t3n), which is required to use GC9A01 LCD screens.
 
 Running the "PlatformIO Upload | eyes" target from CLion, or alternatively running
 ```platformio run --target upload -e eyes```
-will then compile the firmware and upload it to your Teensy 4.x.
+will compile the firmware and upload it to your Teensy 4.x.
 
 ### What does it Look Like?
 Here's a video of the eyes in action:
