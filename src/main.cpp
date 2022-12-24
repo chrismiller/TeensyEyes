@@ -6,7 +6,7 @@
 
 #include "config.h"
 #include "util/logging.h"
-#include "LightSensor.h"
+#include "sensors/LightSensor.h"
 
 // The index of the currently selected eye definitions
 static uint32_t defIndex{0};
