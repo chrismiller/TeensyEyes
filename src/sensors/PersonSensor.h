@@ -64,17 +64,29 @@ private:
 
   static constexpr long SAMPLE_TIME_MS = 200;
 
+  TwoWire &wire;
   person_sensor_results_t results{};
 
   elapsedMillis timeSinceSampledMs{SAMPLE_TIME_MS};
   elapsedMillis lastDetectionTimeMs{};
 
-  static void writeReg(Reg reg, uint8_t value);
+  void writeReg(Reg reg, uint8_t value);
 
 public:
+  // The I2C address of the person sensor board.
+  static constexpr uint8_t I2C_ADDRESS{0x62};
+
   enum class Mode {
     Standby = 0x00, Continuous = 0x01
   };
+
+  explicit PersonSensor(TwoWire &wire);
+
+  /**
+   * Scans for a Person Sensor on the I2C bus.
+   * @return true if a Person Sensor was detected, false otherwise.
+   */
+  bool isPresent();
 
   /// Fetch the latest results from the sensor. Returns false if the read didn't succeed.
   bool read();
@@ -133,6 +145,7 @@ public:
   unsigned long timeSinceFaceDetectedMs() {
     return static_cast<long>(lastDetectionTimeMs);
   }
+
   /**
    * @return the number of faces that were detected at the last successful reading.
    */

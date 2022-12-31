@@ -96,7 +96,7 @@ constexpr int8_t BLINK_PIN{-1};
 constexpr int8_t JOYSTICK_X_PIN{-1};
 constexpr int8_t JOYSTICK_Y_PIN{-1};
 constexpr int8_t LIGHT_PIN{-1};
-constexpr bool PERSON_SENSOR_PRESENT{false};
+constexpr bool USE_PERSON_SENSOR{true};
 
 #ifdef USE_GC9A01A
 EyeController<2, GC9A01A_Display> *eyes{};
