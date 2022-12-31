@@ -4,6 +4,7 @@
 #include <SPI.h>
 #include <array>
 #include <Wire.h>
+#include <Entropy.h>
 
 #include "config.h"
 #include "util/logging.h"
@@ -40,7 +41,8 @@ void setup() {
   DumpMemoryInfo();
   Serial.println("Init");
   Serial.flush();
-  randomSeed(analogRead(A3)); // Seed random() from floating analog input
+  Entropy.Initialize();
+  randomSeed(Entropy.random());
 
   if (hasBlinkButton()) {
     pinMode(BLINK_PIN, INPUT_PULLUP);
