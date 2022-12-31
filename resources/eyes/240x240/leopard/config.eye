@@ -4,13 +4,14 @@
   "backColor"  : "0x5A48",
   "pupil" : {
     "color"      : 0,
-	"min"        : 0.03,
-	"max"        : 0.10
+	"min"        : 0.08,
+	"max"        : 0.30
   },
   "iris" : {
     "texture"   : "iris.png",
+    "mirror"    : true,
     "radius"    : 125,
-    "angle"     : 260
+    "angle"     : 712
   },
   "sclera" : {
     "color"     : "0x5A48"
@@ -22,8 +23,8 @@
   },
   "right" : {
     "iris" : {
-      "mirror" : true,
-      "angle"  : 772
+      "mirror" : false,
+      "angle"  : 320
     }
   }
 }
