@@ -14,6 +14,7 @@
 #include "eyes/240x240/doomRed.h"
 #include "eyes/240x240/doomSpiral.h"
 #include "eyes/240x240/dragon.h"
+//#include "eyes/240x240/firebox.h"
 //#include "eyes/240x240/fish.h"
 #include "eyes/240x240/fizzgig.h"
 //#include "eyes/240x240/flame.h"
@@ -54,6 +55,7 @@ std::array<std::array<EyeDefinition, 2>, 13> eyeDefinitions{{
                                                                {doomRed::eye, doomRed::eye},
                                                                {doomSpiral::left, doomSpiral::right},
                                                                {dragon::eye, dragon::eye},
+//                                                               {firebox::eye, firebox::eye},
 //                                                               {fish::eye, fish::eye},
                                                                {fizzgig::eye, fizzgig::eye},
 //                                                               {flame::eye, flame::eye},
