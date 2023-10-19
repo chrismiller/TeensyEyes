@@ -5,6 +5,8 @@
 // Enable the eye(s) you want to #include -- these are large graphics tables for various eyes:
 //#include "eyes/240x240/anime.h"
 #include "eyes/240x240/bigBlue.h"
+//#include "eyes/240x240/blueFlame1.h"
+//#include "eyes/240x240/blueFlame2.h"
 #include "eyes/240x240/brown.h"
 #include "eyes/240x240/cat.h"
 #include "eyes/240x240/demon.h"
@@ -14,6 +16,7 @@
 #include "eyes/240x240/dragon.h"
 //#include "eyes/240x240/fish.h"
 #include "eyes/240x240/fizzgig.h"
+//#include "eyes/240x240/flame.h"
 //#include "eyes/240x240/hazel.h"
 #include "eyes/240x240/hypnoRed.h"
 //#include "eyes/240x240/leopard.h"
@@ -40,8 +43,10 @@
 
 // A list of all the different eye definitions we want to use
 std::array<std::array<EyeDefinition, 2>, 13> eyeDefinitions{{
-//                                                               {anime::eye, anime::eye},
+//                                                               {anime::left, anime::right},
                                                                {bigBlue::eye, bigBlue::eye},
+//                                                               {blueFlame1::eye, blueFlame1::eye},
+//                                                               {blueFlame2::eye, blueFlame2::eye},
                                                                {brown::eye, brown::eye},
                                                                {cat::eye, cat::eye},
                                                                {demon::left, demon::right},
@@ -51,6 +56,7 @@ std::array<std::array<EyeDefinition, 2>, 13> eyeDefinitions{{
                                                                {dragon::eye, dragon::eye},
 //                                                               {fish::eye, fish::eye},
                                                                {fizzgig::eye, fizzgig::eye},
+//                                                               {flame::eye, flame::eye},
 //                                                               {hazel::eye, hazel::eye},
                                                                {hypnoRed::eye, hypnoRed::eye},
 //                                                               {leopard::left, leopard::right},

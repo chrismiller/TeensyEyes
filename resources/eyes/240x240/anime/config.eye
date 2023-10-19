@@ -21,5 +21,10 @@
     "color"           : "0xD5D5",
     "upperFilename"   : "upper.png",
     "lowerFilename"   : "lower.png"
+  },
+  "right" : {
+    "iris" : {
+      "mirror" : true
+    }
   }
 }

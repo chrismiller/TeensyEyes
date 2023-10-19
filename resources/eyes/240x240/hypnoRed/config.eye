@@ -10,7 +10,8 @@
   },
   "iris" : {
     "texture"      : "iris.png",
-    "radius"       : 100
+    "radius"       : 100,
+    "spin"         : 70
   },
   "sclera" : {
     "color"     : "0x50A2"

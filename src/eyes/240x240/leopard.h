@@ -3453,7 +3453,7 @@ namespace leopard {
 
   const EyeDefinition left PROGMEM = {
       "leopard", 125, 23112, true, 0.5, disp_240_125,
-      { 0, 0, 0.08, 0.3 },
+      { 0, 0, 0.02, 0.2 },
       { 125, { leftIris, leftIrisWidth, leftIrisHeight }, 0, 712, 0, 0, 1023 },
       { { nullptr, 0, 0 }, 23112, 0, 0, 0, 0 },
       { leftUpper, leftLower, 0 },
@@ -3461,7 +3461,7 @@ namespace leopard {
   };
   const EyeDefinition right PROGMEM = {
       "leopard", 125, 23112, true, 0.5, disp_240_125,
-      { 0, 0, 0.08, 0.3 },
+      { 0, 0, 0.02, 0.2 },
       { 125, { leftIris, leftIrisWidth, leftIrisHeight }, 0, 320, 0, 0, 0 },
       { { nullptr, 0, 0 }, 23112, 0, 0, 0, 0 },
       { leftUpper, leftLower, 0 },

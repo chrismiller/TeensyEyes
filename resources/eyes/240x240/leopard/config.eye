@@ -4,8 +4,8 @@
   "backColor"  : "0x5A48",
   "pupil" : {
     "color"      : 0,
-	"min"        : 0.08,
-	"max"        : 0.30
+	"min"        : 0.02,
+	"max"        : 0.20
   },
   "iris" : {
     "texture"   : "iris.png",

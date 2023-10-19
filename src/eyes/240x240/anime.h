@@ -6,8 +6,8 @@
 #include "disp_240_130.h"
 
 namespace anime {
-  // An array of vertical start (inclusive) and end (exclusive) locations for each eyeUpper eyelid column
-  const uint8_t eyeUpper[screenWidth * 2] PROGMEM = {
+  // An array of vertical start (inclusive) and end (exclusive) locations for each leftUpper eyelid column
+  const uint8_t leftUpper[screenWidth * 2] PROGMEM = {
     0x8F, 0x9B, 0x88, 0x9C, 0x82, 0x9D, 0x7D, 0x9F, 0x78, 0xA0, 0x74, 0xA1, 0x71, 0xA2, 0x6D, 0xA3,
     0x6A, 0xA4, 0x67, 0xA5, 0x64, 0xA6, 0x61, 0xA7, 0x5E, 0xA8, 0x5C, 0xA9, 0x59, 0xAA, 0x57, 0xAB,
     0x55, 0xAC, 0x53, 0xAD, 0x51, 0xAD, 0x4F, 0xAE, 0x4D, 0xAF, 0x4B, 0xB0, 0x49, 0xB1, 0x47, 0xB1,
@@ -40,8 +40,8 @@ namespace anime {
     0x5C, 0xB4, 0x60, 0xB3, 0x65, 0xB2, 0x6A, 0xB1, 0x70, 0xB0, 0x77, 0xAE, 0x7F, 0xAC, 0x8B, 0xAB
   };
 
-  // An array of vertical start (inclusive) and end (exclusive) locations for each eyeLower eyelid column
-  const uint8_t eyeLower[screenWidth * 2] PROGMEM = {
+  // An array of vertical start (inclusive) and end (exclusive) locations for each leftLower eyelid column
+  const uint8_t leftLower[screenWidth * 2] PROGMEM = {
     0x99, 0x9C, 0x9A, 0x9E, 0x9B, 0xA0, 0x9C, 0xA2, 0x9D, 0xA4, 0x9E, 0xA6, 0x9F, 0xA7, 0xA0, 0xA9,
     0xA0, 0xAB, 0xA1, 0xAD, 0xA2, 0xAE, 0xA3, 0xB0, 0xA4, 0xB1, 0xA5, 0xB3, 0xA6, 0xB4, 0xA6, 0xB6,
     0xA7, 0xB7, 0xA8, 0xB8, 0xA9, 0xBA, 0xA9, 0xBB, 0xAA, 0xBC, 0xAB, 0xBE, 0xAC, 0xBF, 0xAC, 0xC0,
@@ -75,9 +75,9 @@ namespace anime {
   };
 
   // 512x91, 16 bit 565 RGB
-  constexpr uint16_t eyeIrisWidth = 512;
-  constexpr uint16_t eyeIrisHeight = 91;
-  const uint16_t eyeIris[eyeIrisWidth * eyeIrisHeight] PROGMEM = {
+  constexpr uint16_t leftIrisWidth = 512;
+  constexpr uint16_t leftIrisHeight = 91;
+  const uint16_t leftIris[leftIrisWidth * leftIrisHeight] PROGMEM = {
     0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088,
     0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088,
     0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088, 0x3088,
@@ -3964,9 +3964,9 @@ namespace anime {
   };
 
   // 1x64, 16 bit 565 RGB
-  constexpr uint16_t eyeScleraWidth = 1;
-  constexpr uint16_t eyeScleraHeight = 64;
-  const uint16_t eyeSclera[eyeScleraWidth * eyeScleraHeight] PROGMEM = {
+  constexpr uint16_t leftScleraWidth = 1;
+  constexpr uint16_t leftScleraHeight = 64;
+  const uint16_t leftSclera[leftScleraWidth * leftScleraHeight] PROGMEM = {
     0xDE78, 0xE6D9, 0xE6DA, 0xE6DA, 0xE6DA, 0xE6DA, 0xE6DA, 0xE6DA, 0xE6DA, 0xE6DA, 0xE6DA, 0xE6FA,
     0xE6FA, 0xE6FA, 0xE6FA, 0xE6FA, 0xEEFA, 0xEEFB, 0xEEFB, 0xEF1B, 0xEF1B, 0xEF1B, 0xEF1B, 0xEF1B,
     0xEF1B, 0xEF1B, 0xEF3B, 0xEF3B, 0xEF3C, 0xEF3C, 0xEF3C, 0xF73C, 0xF75C, 0xF75C, 0xF75C, 0xF75C,
@@ -3975,12 +3975,20 @@ namespace anime {
     0xFFBE, 0xFFBE, 0xFFBE, 0xFFBE
   };
 
-  const EyeDefinition eye PROGMEM = {
+  const EyeDefinition left PROGMEM = {
       "anime", 130, 56952, true, 0.1, disp_240_130,
       { 0, 0, 0.3, 0.4 },
-      { 95, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 512, 0 },
-      { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },
-      { eyeUpper, eyeLower, 0xD5D5 },
+      { 95, { leftIris, leftIrisWidth, leftIrisHeight }, 0, 0, 0, 512, 0 },
+      { { leftSclera, leftScleraWidth, leftScleraHeight }, 0, 0, 0, 0, 0 },
+      { leftUpper, leftLower, 0xD5D5 },
+      { 240, polarAngle_240, polarDist_240_130_95_0 }
+  };
+  const EyeDefinition right PROGMEM = {
+      "anime", 130, 56952, true, 0.1, disp_240_130,
+      { 0, 0, 0.3, 0.4 },
+      { 95, { leftIris, leftIrisWidth, leftIrisHeight }, 0, 0, 0, 512, 1023 },
+      { { leftSclera, leftScleraWidth, leftScleraHeight }, 0, 0, 0, 0, 0 },
+      { leftUpper, leftLower, 0xD5D5 },
       { 240, polarAngle_240, polarDist_240_130_95_0 }
   };
 }
