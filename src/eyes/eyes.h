@@ -1,5 +1,9 @@
 #pragma once
 
+// The G++ with Teensydunio 1.59 beta 3 adds a new warning. This silences it.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpsabi"
+
 #include <Arduino.h>
 
 constexpr uint16_t screenWidth = 240;
@@ -205,3 +209,5 @@ struct DisplayDefinition {
   Disp *display{};        // A Display implementation
   EyeDefinition &definition;
 };
+
+#pragma GCC diagnostic pop
