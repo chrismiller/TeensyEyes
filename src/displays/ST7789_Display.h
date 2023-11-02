@@ -38,6 +38,8 @@ public:
 
   void drawPixel(int16_t x, int16_t y, uint16_t color565);
 
+  void drawFastVLine(int16_t x, int16_t y, int16_t height, uint16_t color565);
+
   void drawText(int16_t x, int16_t y, char *text);
 
   void update();

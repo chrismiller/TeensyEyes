@@ -366,7 +366,7 @@ private:
       auto currentUpper = eye.definition->eyelids.upperLid(screenX, upperF);
       auto currentLower = eye.definition->eyelids.lowerLid(screenX, lowerF);
 
-      uint8_t minY, maxY;
+      uint16_t minY, maxY;
       if (eye.drawAll) {
         minY = 0;
         maxY = screenHeight;
@@ -394,106 +394,113 @@ private:
         xmul = 1; // X displacement is always positive
       }
 
+      // draw any part of the upper eyelid that needs repainting
+      if (currentUpper > minY) {
+        display.drawFastVLine(screenX, minY, currentUpper - minY, eye.definition->eyelids.color);
+        minY = currentUpper;
+      }
+      // draw any part of the lower eyelid that needs repainting
+      if (currentLower < maxY) {
+        display.drawFastVLine(screenX, currentLower, maxY - currentLower, eye.definition->eyelids.color);
+        maxY = currentLower;
+      }
+
+      // draw everything else
       const int xx = xPositionOverMap + screenX;
       for (uint16_t screenY = minY; screenY < maxY; screenY++) {
         uint16_t p;
 
-        if (screenY < currentUpper || screenY >= currentLower) {
-          // We're in the eyelid
-          p = eye.definition->eyelids.color;
+        const int yy = yPositionOverMap + screenY;
+        int dx, dy;
+        if (screenY < displacementMapSize) {
+          // We're in the top half of the screen, so we need to vertically flip the displacement map lookup
+          doff = displacementMapSize - screenY - 1;
+          dy = -displaceY[doff];
         } else {
-          const int yy = yPositionOverMap + screenY;
-          int dx, dy;
-          if (screenY < displacementMapSize) {
-            // We're in the top half of the screen, so we need to vertically flip the displacement map lookup
-            doff = displacementMapSize - screenY - 1;
-            dy = -displaceY[doff];
-          } else {
-            // We're in the bottom half of the screen
-            doff = screenY - displacementMapSize;
-            dy = displaceY[doff];
-          }
-          dx = displaceX[doff * displacementMapSize];
-          if (dx < 255) {
-            // We're inside the eyeball (sclera/iris/pupil) area
-            dx *= xmul;  // Flip x offset sign if in left half of screen
-            int mx = xx + dx;
-            int my = yy + dy;
+          // We're in the bottom half of the screen
+          doff = screenY - displacementMapSize;
+          dy = displaceY[doff];
+        }
+        dx = displaceX[doff * displacementMapSize];
+        if (dx < 255) {
+          // We're inside the eyeball (sclera/iris/pupil) area
+          dx *= xmul;  // Flip x offset sign if in left half of screen
+          int mx = xx + dx;
+          int my = yy + dy;
 
-            if (mx >= 0 && mx < mapRadius * 2 && my >= 0 && my < mapRadius * 2) {
-              // We're inside the polar angle/distance maps
-              uint16_t angle;
-              int distance, moff;
-              if (my >= mapRadius) {
-                my -= mapRadius;
-                if (mx >= mapRadius) {
-                  // Quadrant 1 (bottom right), so we can use the angle/dist lookups directly
-                  mx -= mapRadius;
-                  moff = my * mapRadius + mx;
-                  angle = eye.definition->polar.angle[moff];
-                  distance = eye.definition->polar.distance[moff];
-                } else {
-                  // Quadrant 2 (bottom left), so rotate angle by 270 degrees clockwise (768) and mirror distance on X axis
-                  mx = mapRadius - mx - 1;
-                  angle = eye.definition->polar.angle[mx * mapRadius + my] + 768;
-                  distance = eye.definition->polar.distance[my * mapRadius + mx];
-                }
+          if (mx >= 0 && mx < mapRadius * 2 && my >= 0 && my < mapRadius * 2) {
+            // We're inside the polar angle/distance maps
+            uint16_t angle;
+            int distance, moff;
+            if (my >= mapRadius) {
+              my -= mapRadius;
+              if (mx >= mapRadius) {
+                // Quadrant 1 (bottom right), so we can use the angle/dist lookups directly
+                mx -= mapRadius;
+                moff = my * mapRadius + mx;
+                angle = eye.definition->polar.angle[moff];
+                distance = eye.definition->polar.distance[moff];
               } else {
-                if (mx < mapRadius) {
-                  // Quadrant 3 (top left), so rotate angle by 180 degrees and mirror distance on the X and Y axes
-                  mx = mapRadius - mx - 1;
-                  my = mapRadius - my - 1;
-                  moff = my * mapRadius + mx;
-                  angle = eye.definition->polar.angle[moff] + 512;
-                  distance = eye.definition->polar.distance[moff];
-                } else {
-                  // Quadrant 4 (top right), so rotate angle by 90 degrees clockwise (256) and mirror distance on Y axis
-                  mx -= mapRadius;
-                  my = mapRadius - my - 1;
-                  angle = eye.definition->polar.angle[mx * mapRadius + my] + 256;
-                  distance = eye.definition->polar.distance[my * mapRadius + mx];
-                }
-              }
-
-              // Convert the polar angle/distance to texture map coordinates
-              if (distance < 128) {
-                // We're in the sclera
-                if (hasScleraTexture) {
-                  angle = ((angle + eye.currentScleraAngle) & 1023) ^ eye.definition->sclera.mirror;
-                  const int tx = (angle & 1023) * eye.definition->sclera.texture.width / 1024; // Texture map x/y
-                  const int ty = distance * eye.definition->sclera.texture.height / 128;
-                  p = eye.definition->sclera.texture.get(tx, ty);
-                } else {
-                  p = eye.definition->sclera.color;
-                }
-              } else if (distance < 255) {
-                // Either the iris or pupil
-                if (distance >= irisSize) {
-                  // Pupil
-                  p = eye.definition->pupil.color;
-                } else {
-                  // Iris
-                  if (hasIrisTexture) {
-                    angle = ((angle + eye.currentIrisAngle) & 1023) ^ eye.definition->iris.mirror;
-                    const int tx = (angle & 1023) * eye.definition->iris.texture.width / 1024;
-                    const int ty = (distance - 128) * iPupilFactor / 32768;
-                    p = eye.definition->iris.texture.get(tx, ty);
-                  } else {
-                    p = eye.definition->iris.color;
-                  }
-                }
-              } else {
-                // Back of eye
-                p = eye.definition->backColor;
+                // Quadrant 2 (bottom left), so rotate angle by 270 degrees clockwise (768) and mirror distance on X axis
+                mx = mapRadius - mx - 1;
+                angle = eye.definition->polar.angle[mx * mapRadius + my] + 768;
+                distance = eye.definition->polar.distance[my * mapRadius + mx];
               }
             } else {
-              // We're outside the polar map so just use the back-of-eye color
+              if (mx < mapRadius) {
+                // Quadrant 3 (top left), so rotate angle by 180 degrees and mirror distance on the X and Y axes
+                mx = mapRadius - mx - 1;
+                my = mapRadius - my - 1;
+                moff = my * mapRadius + mx;
+                angle = eye.definition->polar.angle[moff] + 512;
+                distance = eye.definition->polar.distance[moff];
+              } else {
+                // Quadrant 4 (top right), so rotate angle by 90 degrees clockwise (256) and mirror distance on Y axis
+                mx -= mapRadius;
+                my = mapRadius - my - 1;
+                angle = eye.definition->polar.angle[mx * mapRadius + my] + 256;
+                distance = eye.definition->polar.distance[my * mapRadius + mx];
+              }
+            }
+
+            // Convert the polar angle/distance to texture map coordinates
+            if (distance < 128) {
+              // We're in the sclera
+              if (hasScleraTexture) {
+                angle = ((angle + eye.currentScleraAngle) & 1023) ^ eye.definition->sclera.mirror;
+                const int tx = (angle & 1023) * eye.definition->sclera.texture.width / 1024; // Texture map x/y
+                const int ty = distance * eye.definition->sclera.texture.height / 128;
+                p = eye.definition->sclera.texture.get(tx, ty);
+              } else {
+                p = eye.definition->sclera.color;
+              }
+            } else if (distance < 255) {
+              // Either the iris or pupil
+              if (distance >= irisSize) {
+                // Pupil
+                p = eye.definition->pupil.color;
+              } else {
+                // Iris
+                if (hasIrisTexture) {
+                  angle = ((angle + eye.currentIrisAngle) & 1023) ^ eye.definition->iris.mirror;
+                  const int tx = (angle & 1023) * eye.definition->iris.texture.width / 1024;
+                  const int ty = (distance - 128) * iPupilFactor / 32768;
+                  p = eye.definition->iris.texture.get(tx, ty);
+                } else {
+                  p = eye.definition->iris.color;
+                }
+              }
+            } else {
+              // Back of eye
               p = eye.definition->backColor;
             }
           } else {
-            // We're outside the eye area, i.e. this must be on an eyelid
-            p = eye.definition->eyelids.color;
+            // We're outside the polar map so just use the back-of-eye color
+            p = eye.definition->backColor;
           }
+        } else {
+          // We're outside the eye area, i.e. this must be on an eyelid
+          p = eye.definition->eyelids.color;
         }
         display.drawPixel(screenX, screenY, p);
       } // end column

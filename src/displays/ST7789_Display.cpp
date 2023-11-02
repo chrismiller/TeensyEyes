@@ -54,6 +54,10 @@ void ST7789_Display::drawPixel(int16_t x, int16_t y, uint16_t color565) {
   display->drawPixel(x, y, color565);
 }
 
+void ST7789_Display::drawFastVLine(int16_t x, int16_t y, int16_t height, uint16_t color565) {
+  display->drawFastVLine(x, y, height, color565);
+}
+
 void ST7789_Display::drawText(int16_t x, int16_t y, char *text) {
   display->setCursor(x, y);
   display->setTextSize(2);
