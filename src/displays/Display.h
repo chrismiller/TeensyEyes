@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-#define SHOW_FPS
+//#define SHOW_FPS
 
 template <typename T>
 class Display {
