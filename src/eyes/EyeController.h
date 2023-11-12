@@ -333,12 +333,14 @@ private:
     const int32_t xPositionOverMap = eye.x - screenWidth / 2;
     const int32_t yPositionOverMap = eye.y - screenHeight / 2;
 
-    bool hasScleraTexture = eye.definition->sclera.hasTexture();
-    bool hasIrisTexture = eye.definition->iris.hasTexture();
+    const ScleraParams &sclera = eye.definition->sclera;
+    const IrisParams &iris = eye.definition->iris;
+    bool hasScleraTexture = sclera.hasTexture();
+    bool hasIrisTexture = iris.hasTexture();
 
     const float pupilRange = eye.definition->pupil.max - eye.definition->pupil.min;
     const float irisValue = 1.0f - (eye.definition->pupil.min + pupilRange * state.pupilAmount);
-    const int32_t irisTextureHeight = hasIrisTexture ? eye.definition->iris.texture.height : 1;
+    const int32_t irisTextureHeight = hasIrisTexture ? iris.texture.height : 1;
     // We scale this up by 32768 to give us more precision but still use integer maths in the inner loop.
     // The 126 is the maximum distance value we can expect from the polar distance map.
     int32_t iPupilFactor = static_cast<int32_t>(32768.0f / 126.0f * (irisTextureHeight - 1) / irisValue);
@@ -360,6 +362,13 @@ private:
     eye.upperLidFactor = upperFactor;
     eye.lowerLidFactor = lowerFactor;
     blink.blinkFactor = blinkFactor;
+
+    // Hoist these out of the inner loop
+    const uint8_t *angleLookup = eye.definition->polar.angle;
+    const uint8_t *distanceLookup = eye.definition->polar.distance;
+    const uint16_t eyelidColor = eye.definition->eyelids.color;
+    const uint16_t pupilColor = eye.definition->pupil.color;
+    const uint16_t backColor = eye.definition->backColor;
 
     for (uint32_t screenX = 0; screenX < screenWidth; screenX++) {
       // Determine the extents of the eye that need to be drawn, based on where the eyelids
@@ -397,12 +406,12 @@ private:
 
       // draw any part of the upper eyelid that needs repainting
       if (currentUpper > minY) {
-        display.drawFastVLine(screenX, minY, currentUpper - minY, eye.definition->eyelids.color);
+        display.drawFastVLine(screenX, minY, currentUpper - minY, eyelidColor);
         minY = currentUpper;
       }
       // draw any part of the lower eyelid that needs repainting
       if (currentLower < maxY) {
-        display.drawFastVLine(screenX, currentLower, maxY - currentLower, eye.definition->eyelids.color);
+        display.drawFastVLine(screenX, currentLower, maxY - currentLower, eyelidColor);
         maxY = currentLower;
       }
 
@@ -439,13 +448,13 @@ private:
                 // Quadrant 1 (bottom right), so we can use the angle/dist lookups directly
                 mx -= mapRadius;
                 moff = my * mapRadius + mx;
-                angle = eye.definition->polar.angle[moff];
-                distance = eye.definition->polar.distance[moff];
+                angle = angleLookup[moff];
+                distance = distanceLookup[moff];
               } else {
                 // Quadrant 2 (bottom left), so rotate angle by 270 degrees clockwise (768) and mirror distance on X axis
                 mx = mapRadius - mx - 1;
-                angle = eye.definition->polar.angle[mx * mapRadius + my] + 768;
-                distance = eye.definition->polar.distance[my * mapRadius + mx];
+                angle = angleLookup[mx * mapRadius + my] + 768;
+                distance = distanceLookup[my * mapRadius + mx];
               }
             } else {
               if (mx < mapRadius) {
@@ -453,14 +462,14 @@ private:
                 mx = mapRadius - mx - 1;
                 my = mapRadius - my - 1;
                 moff = my * mapRadius + mx;
-                angle = eye.definition->polar.angle[moff] + 512;
-                distance = eye.definition->polar.distance[moff];
+                angle = angleLookup[moff] + 512;
+                distance = distanceLookup[moff];
               } else {
                 // Quadrant 4 (top right), so rotate angle by 90 degrees clockwise (256) and mirror distance on Y axis
                 mx -= mapRadius;
                 my = mapRadius - my - 1;
-                angle = eye.definition->polar.angle[mx * mapRadius + my] + 256;
-                distance = eye.definition->polar.distance[my * mapRadius + mx];
+                angle = angleLookup[mx * mapRadius + my] + 256;
+                distance = distanceLookup[my * mapRadius + mx];
               }
             }
 
@@ -468,40 +477,40 @@ private:
             if (distance < 128) {
               // We're in the sclera
               if (hasScleraTexture) {
-                angle = ((angle + eye.currentScleraAngle) & 1023) ^ eye.definition->sclera.mirror;
-                const int32_t tx = (angle & 1023) * eye.definition->sclera.texture.width / 1024; // Texture map x/y
-                const int32_t ty = distance * eye.definition->sclera.texture.height / 128;
-                p = eye.definition->sclera.texture.get(tx, ty);
+                angle = ((angle + eye.currentScleraAngle) & 1023) ^ sclera.mirror;
+                const int32_t tx = (angle & 1023) * sclera.texture.width / 1024; // Texture map x/y
+                const int32_t ty = distance * sclera.texture.height / 128;
+                p = sclera.texture.get(tx, ty);
               } else {
-                p = eye.definition->sclera.color;
+                p = sclera.color;
               }
             } else if (distance < 255) {
               // Either the iris or pupil
               if (distance >= irisSize) {
                 // Pupil
-                p = eye.definition->pupil.color;
+                p = pupilColor;
               } else {
                 // Iris
                 if (hasIrisTexture) {
-                  angle = ((angle + eye.currentIrisAngle) & 1023) ^ eye.definition->iris.mirror;
-                  const int32_t tx = (angle & 1023) * eye.definition->iris.texture.width / 1024;
+                  angle = ((angle + eye.currentIrisAngle) & 1023) ^ iris.mirror;
+                  const int32_t tx = (angle & 1023) * iris.texture.width / 1024;
                   const int32_t ty = (distance - 128) * iPupilFactor / 32768;
-                  p = eye.definition->iris.texture.get(tx, ty);
+                  p = iris.texture.get(tx, ty);
                 } else {
-                  p = eye.definition->iris.color;
+                  p = iris.color;
                 }
               }
             } else {
               // Back of eye
-              p = eye.definition->backColor;
+              p = backColor;
             }
           } else {
             // We're outside the polar map so just use the back-of-eye color
-            p = eye.definition->backColor;
+            p = backColor;
           }
         } else {
           // We're outside the eye area, i.e. this must be on an eyelid
-          p = eye.definition->eyelids.color;
+          p = eyelidColor;
         }
         display.drawPixel(screenX, screenY, p);
       } // end column
