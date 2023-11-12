@@ -59,7 +59,7 @@ private:
         state.inMotion = false;
         // The "move" duration temporarily becomes a hold duration...
         // Normally this is 35 ms to 1 sec, but don't exceed gazeMax setting
-        uint32_t limit = min(1000u, maxGazeMs);
+        uint32_t limit = std::min(static_cast<uint32_t>(1000), maxGazeMs);
         state.moveDurationMs = random(35u, limit);         // Time between micro-saccades
         if (!state.saccadeIntervalMs) {                    // Cleared when "big" saccade finishes
           state.lastSaccadeStopMs = t;                     // Time when saccade stopped
@@ -633,7 +633,7 @@ public:
   /// \param ratio a value between 0 and 1, where 0 is the smallest permissible pupil size,
   /// 1 is the largest.
   void setPupil(float ratio) {
-    state.pupilAmount = max(0.0f, min(1.0f, ratio));
+    state.pupilAmount = std::max(0.0f, std::min(1.0f, ratio));
   }
 
   /// Updates the definitions of the eyes.
