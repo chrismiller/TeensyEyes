@@ -363,27 +363,29 @@ private:
     eye.lowerLidFactor = lowerFactor;
     blink.blinkFactor = blinkFactor;
 
-    // Hoist these out of the inner loop
+    // Hoist these out of the inner loops
     const uint8_t *angleLookup = eye.definition->polar.angle;
     const uint8_t *distanceLookup = eye.definition->polar.distance;
-    const uint16_t eyelidColor = eye.definition->eyelids.color;
     const uint16_t pupilColor = eye.definition->pupil.color;
     const uint16_t backColor = eye.definition->backColor;
+    const EyelidParams &eyelids = eye.definition->eyelids;
+    const uint16_t eyelidColor = eyelids.color;
+    const uint8_t *displacement = eye.definition->displacement;
 
     for (uint32_t screenX = 0; screenX < screenWidth; screenX++) {
       // Determine the extents of the eye that need to be drawn, based on where the eyelids
       // are located in both this and the previous frame
-      auto currentUpper = eye.definition->eyelids.upperLid(screenX, upperF);
-      auto currentLower = eye.definition->eyelids.lowerLid(screenX, lowerF);
+      auto currentUpper = eyelids.upperLid(screenX, upperF);
+      auto currentLower = eyelids.lowerLid(screenX, lowerF);
 
       uint32_t minY, maxY;
       if (eye.drawAll) {
         minY = 0;
         maxY = screenHeight;
       } else {
-        auto previousUpper = eye.definition->eyelids.upperLid(screenX, prevUpperF);
+        auto previousUpper = eyelids.upperLid(screenX, prevUpperF);
         minY = std::min(currentUpper, previousUpper);
-        auto previousLower = eye.definition->eyelids.lowerLid(screenX, prevLowerF);
+        auto previousLower = eyelids.lowerLid(screenX, prevLowerF);
         maxY = std::max(currentLower, previousLower);
       }
 
@@ -394,13 +396,13 @@ private:
       int32_t doff; // Offset into displacement arrays
       if (screenX < (screenWidth / 2)) {
         // Left half of screen, so we need to horizontally flip our displacement map lookup
-        displaceX = &eye.definition->displacement[displacementMapSize - 1 - screenX];
-        displaceY = &eye.definition->displacement[(displacementMapSize - 1 - screenX) * displacementMapSize];
+        displaceX = &displacement[displacementMapSize - 1 - screenX];
+        displaceY = &displacement[(displacementMapSize - 1 - screenX) * displacementMapSize];
         xmul = -1; // X displacement is always negative
       } else {
         // Right half of screen, so we can lookup horizontally as-is
-        displaceX = &eye.definition->displacement[screenX - displacementMapSize];
-        displaceY = &eye.definition->displacement[(screenX - displacementMapSize) * displacementMapSize];
+        displaceX = &displacement[screenX - displacementMapSize];
+        displaceY = &displacement[(screenX - displacementMapSize) * displacementMapSize];
         xmul = 1; // X displacement is always positive
       }
 
