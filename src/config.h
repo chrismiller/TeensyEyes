@@ -79,6 +79,9 @@ std::array<std::array<EyeDefinition, 2>, 13> eyeDefinitions{{
 // eyelid handling -- no need for distinct L-to-R or R-to-L inner loops. Just the X
 // coordinate of the iris is then reversed when drawing this eye, so they move the same.
 #ifdef USE_GC9A01A
+// Hardware order is:
+// VCC GND SCL     SDA      DC CS RST
+// VCC GND SPI-SCK SPI-MOSI DC CS RST
 GC9A01A_Config eyeInfo[] = {
     // CS DC MOSI SCK RST ROT MIRROR USE_FB ASYNC
     {0,  2, 26, 27, 3, 0, true,  true, true}, // Left display
@@ -104,7 +107,11 @@ constexpr int8_t BLINK_PIN{-1};
 constexpr int8_t JOYSTICK_X_PIN{-1};
 constexpr int8_t JOYSTICK_Y_PIN{-1};
 constexpr int8_t LIGHT_PIN{-1};
-constexpr bool USE_PERSON_SENSOR{false};
+constexpr int8_t LEFT_FEELER_LR_PIN{-1};
+constexpr int8_t LEFT_FEELER_UD_PIN{-1};
+constexpr int8_t RIGHT_FEELER_LR_PIN{-1};
+constexpr int8_t RIGHT_FEELER_UD_PIN{-1};
+constexpr int8_t USE_PERSON_SENSOR{false};
 
 #ifdef USE_GC9A01A
 EyeController<2, GC9A01A_Display> *eyes{};

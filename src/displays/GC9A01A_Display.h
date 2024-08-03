@@ -10,8 +10,8 @@
 typedef struct {
   int8_t cs;            // Chip select pin.
   int8_t dc;            // DC pin.
-  int8_t mosi;          // MOSI pin.
-  int8_t sck;           // SCK pin.
+  int8_t mosi;          // MOSI pin (SDA).
+  int8_t sck;           // SCK pin (SCL).
   int8_t rst;           // reset pin, or -1 to disable reset.
   uint8_t rotation;     // The rotation value for the display (0-3).
   bool mirror;          // Mirror the display in the X direction.

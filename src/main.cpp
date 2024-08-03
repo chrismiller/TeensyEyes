@@ -10,6 +10,7 @@
 #include "util/logging.h"
 #include "sensors/LightSensor.h"
 #include "sensors/PersonSensor.h"
+#include "feelers/Animation.h"
 
 // The index of the currently selected eye definitions
 static uint32_t defIndex{0};
@@ -17,6 +18,7 @@ static uint32_t defIndex{0};
 LightSensor lightSensor(LIGHT_PIN);
 PersonSensor personSensor(Wire);
 bool personSensorFound = USE_PERSON_SENSOR;
+Animation feelerAnimation{};
 
 bool hasBlinkButton() {
   return BLINK_PIN >= 0;
@@ -68,6 +70,8 @@ void setup() {
   }
 
   initEyes(!hasJoystick(), !hasBlinkButton(), !hasLightSensor());
+
+  feelerAnimation.init(LEFT_FEELER_LR_PIN, LEFT_FEELER_UD_PIN, RIGHT_FEELER_LR_PIN, RIGHT_FEELER_UD_PIN);
 }
 
 void nextEye() {
@@ -77,6 +81,9 @@ void nextEye() {
 
 /// MAIN LOOP -- runs continuously after setup() ----------------------------
 void loop() {
+  // Update the feeler positions
+  feelerAnimation.update();
+
   // Switch eyes periodically
   static elapsedMillis eyeTime{};
   if (eyeTime > EYE_DURATION_MS) {
