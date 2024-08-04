@@ -18,7 +18,7 @@ bool PersonSensor::read() {
   }
   auto *results_bytes = (uint8_t *) (&results);
   for (unsigned int i = 0; i < sizeof(person_sensor_results_t); ++i) {
-    results_bytes[i] = Wire.read();
+    results_bytes[i] = wire.read();
   }
   timeSinceSampledMs = 0;
   if (numFacesFound() > 0) {
