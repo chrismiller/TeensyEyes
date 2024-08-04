@@ -62,13 +62,13 @@ private:
     EraseIDs = 0x06, DebugMode = 0x07
   };
 
-  static constexpr long SAMPLE_TIME_MS = 200;
+  static constexpr long SAMPLE_TIME_MS = 70;
 
   TwoWire &wire;
   person_sensor_results_t results{};
 
   elapsedMillis timeSinceSampledMs{SAMPLE_TIME_MS};
-  elapsedMillis lastDetectionTimeMs{};
+  elapsedMillis lastDetectionTimeMs;
 
   void writeReg(Reg reg, uint8_t value);
 
