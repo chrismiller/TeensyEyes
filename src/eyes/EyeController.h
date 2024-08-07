@@ -609,9 +609,11 @@ public:
     auto r = (middle * 2.0f - static_cast<float>(screenWidth) * static_cast<float>(M_PI_2)) * 0.75f;
     state.eyeNewX = middle - xTarget * r;
     state.eyeNewY = middle - yTarget * r;
-    state.inMotion = true;
-    state.moveDurationMs = durationMs;
-    state.moveStartTimeMs = millis();
+    if (!state.inMotion) {
+      state.inMotion = true;
+      state.moveDurationMs = durationMs;
+      state.moveStartTimeMs = millis();
+    }
   }
 
   /// Instantly moves the eye(s) to a given position. The coordinate should fall inside the unit circle.
