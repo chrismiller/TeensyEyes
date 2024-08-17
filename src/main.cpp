@@ -110,6 +110,8 @@ void loop() {
     });
   }
 
+  static float prevTargetX{64.0};
+  static float prevTargetY{64.0};
   if (hasPersonSensor() && personSensor.read()) {
     // Find the closest face that is facing the camera, if any
     int maxSize = 0;
@@ -130,10 +132,18 @@ void loop() {
       eyes->setAutoMove(false);
       float targetX = -((static_cast<float>(maxFace.box_left) + static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
       float targetY = (static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
-      eyes->setTargetPosition(targetX, targetY);
-    } else if (personSensor.timeSinceFaceDetectedMs() > 5'000 && !eyes->autoMoveEnabled()) {
+      // Take the average of this and the previous centre, to stop any unwanted movement due to the PersonSensor's
+      // bounding box sometimes jittering across alternate frames
+      float averageX = prevTargetX != 64.0f ? (targetX + prevTargetX) / 2.0f : targetX;
+      float averageY = prevTargetY != 64.0f ? (targetY + prevTargetY) / 2.0f : targetY;
+      prevTargetX = targetX;
+      prevTargetY = targetY;
+      eyes->setTargetPosition(averageX, averageY, 100);
+    } else if (personSensor.timeSinceFaceDetectedMs() > 2'000 && !eyes->autoMoveEnabled()) {
       // We haven't seen a face for a while so enable automove
       eyes->setAutoMove(true);
+      prevTargetX = 64.0f;
+      prevTargetY = 64.0f;
     }
   }
 

@@ -82,8 +82,10 @@ std::vector<MovementDefinition> movements{
 void Animation::init(int leftLR, int leftUD, int rightLR, int rightUD) {
   enabled = leftLR >= 0 && leftUD >= 0 && rightLR >= 0 && rightUD >= 0;
   if (!enabled) {
+    Serial.print("No feelers configured");
     return;
   }
+  Serial.println("Feelers configured");
   leftFeeler = new Feeler();
   rightFeeler = new Feeler();
   leftFeeler->init(leftLR, leftUD, movements[0].left);
