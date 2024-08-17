@@ -111,6 +111,7 @@ constexpr int8_t LEFT_FEELER_LR_PIN{-1};
 constexpr int8_t LEFT_FEELER_UD_PIN{-1};
 constexpr int8_t RIGHT_FEELER_LR_PIN{-1};
 constexpr int8_t RIGHT_FEELER_UD_PIN{-1};
+constexpr int8_t FEELER_BUTTON_PIN{-1};
 constexpr int8_t USE_PERSON_SENSOR{false};
 
 #ifdef USE_GC9A01A

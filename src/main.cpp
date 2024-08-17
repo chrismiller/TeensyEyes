@@ -72,7 +72,7 @@ void setup() {
 
   initEyes(!hasJoystick(), !hasBlinkButton(), !hasLightSensor());
 
-  feelerAnimation.init(LEFT_FEELER_LR_PIN, LEFT_FEELER_UD_PIN, RIGHT_FEELER_LR_PIN, RIGHT_FEELER_UD_PIN);
+  feelerAnimation.init(LEFT_FEELER_LR_PIN, LEFT_FEELER_UD_PIN, RIGHT_FEELER_LR_PIN, RIGHT_FEELER_UD_PIN, FEELER_BUTTON_PIN);
 }
 
 void nextEye() {
