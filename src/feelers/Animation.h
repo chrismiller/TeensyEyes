@@ -21,7 +21,7 @@ class Animation {
   Bounce *startStopButton{};
   bool enabled{};
   bool animating{};
-  void apply(MovementDefinition &md);
+  void apply(const MovementDefinition &md);
 
   public:
   void init(int leftLR, int leftUD, int rightLR, int rightUD, int startStopButtonPin);

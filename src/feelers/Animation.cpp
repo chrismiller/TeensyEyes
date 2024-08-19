@@ -1,24 +1,24 @@
 #include "Animation.h"
 
-std::vector<MovementDefinition> movements{
+static const std::vector<MovementDefinition> movements{
     MovementDefinition{
         new StopMovement(1000),
         new StopMovement(1000),
-        2'000
+        1'000
     },
     MovementDefinition{
-        new CircularMovement(3000),
-        new CircularMovement(3000, true),
-        20'000
+        new CircularMovement(4000, true),
+        new CircularMovement(4000),
+        10'000
     },
     MovementDefinition{
-        new DiagonalMovement(2000),
-        new DiagonalMovement(2000, true),
-        20'000
+        new DiagonalMovement(2500),
+        new DiagonalMovement(2500, true),
+        10'000
     },
     MovementDefinition{
-        new SidewaysMovement(1000),
-        new SidewaysMovement(1000),
+        new SidewaysMovement(2000),
+        new SidewaysMovement(2000),
         10'000
     },
     MovementDefinition{
@@ -28,13 +28,13 @@ std::vector<MovementDefinition> movements{
     },
     MovementDefinition{
         new VerticalMovement(2500),
-        new VerticalMovement(2500),
+        new VerticalMovement(2500, true),
         20'000
     },
     MovementDefinition{
         new StopMovement(4000),
         new StopMovement(4000),
-        10'000
+        2'000
     },
     MovementDefinition{
         new RandomMovement(),
@@ -42,13 +42,23 @@ std::vector<MovementDefinition> movements{
         45'000
     },
     MovementDefinition{
-        new CircularMovement(3000),
-        new CircularMovement(3000, true),
-        30'000
+        new SidewaysMovement(2000),
+        new VerticalMovement(2000),
+        10'000
     },
     MovementDefinition{
-        new SidewaysMovement(1000),
-        new SidewaysMovement(1000, true),
+        new VerticalMovement(3000),
+        new SidewaysMovement(3000),
+        10'000
+    },
+    MovementDefinition{
+        new CircularMovement(3000),
+        new CircularMovement(3000, true),
+        10'000
+    },
+    MovementDefinition{
+        new SidewaysMovement(1500),
+        new SidewaysMovement(1500, true),
         12'000
     },
     MovementDefinition{
@@ -64,7 +74,7 @@ std::vector<MovementDefinition> movements{
     MovementDefinition{
         new StopMovement(6000),
         new StopMovement(6000),
-        10'000
+        5'000
     },
     MovementDefinition{
         new RandomMovement(),
@@ -76,7 +86,7 @@ std::vector<MovementDefinition> movements{
 void Animation::init(int leftLR, int leftUD, int rightLR, int rightUD, int startStopButtonPin) {
   enabled = leftLR >= 0 && leftUD >= 0 && rightLR >= 0 && rightUD >= 0;
   if (!enabled) {
-    Serial.print("No feelers configured");
+    Serial.println("No feelers configured");
     return;
   }
   Serial.println("Feelers configured");
@@ -101,8 +111,12 @@ void Animation::update() {
     // The button was pushed, toggle the feeler animatronics off or on
     animating = !animating;
     if (!animating) {
+      Serial.println("Feeler button pressed, stopping feelers");
       // Move the feelers towards neutral then stop
       apply(movements[0]);
+    } else {
+      Serial.println("Feeler button pressed, starting feelers");
+      last_movement_change = 0;
     }
   }
 
@@ -121,7 +135,7 @@ void Animation::update() {
   rightFeeler->update();
 }
 
-void Animation::apply(MovementDefinition &md) {
+void Animation::apply(const MovementDefinition &md) {
   leftFeeler->setMovement(md.left);
   rightFeeler->setMovement(md.right);
   last_movement_change = millis();
