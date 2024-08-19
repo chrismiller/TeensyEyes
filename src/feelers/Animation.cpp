@@ -83,6 +83,8 @@ void Animation::init(int leftLR, int leftUD, int rightLR, int rightUD, int start
   if (startStopButtonPin >= 0) {
     pinMode(startStopButtonPin, INPUT_PULLUP);
     startStopButton = new Bounce(startStopButtonPin, 10);
+  } else {
+    animating = true;
   }
   leftFeeler = new Feeler();
   rightFeeler = new Feeler();
