@@ -3,10 +3,10 @@
 #include "eyes/eyes.h"
 
 // Enable the eye(s) you want to #include -- these are large graphics tables for various eyes:
-//#include "eyes/240x240/anime.h"
 #include "eyes/240x240/bigBlue.h"
-//#include "eyes/240x240/blueFlame1.h"
-//#include "eyes/240x240/blueFlame2.h"
+#include "eyes/240x240/anime.h"
+#include "eyes/240x240/blueFlame1.h"
+#include "eyes/240x240/blueFlame2.h"
 #include "eyes/240x240/brown.h"
 #include "eyes/240x240/cat.h"
 #include "eyes/240x240/demon.h"
@@ -14,17 +14,17 @@
 #include "eyes/240x240/doomRed.h"
 #include "eyes/240x240/doomSpiral.h"
 #include "eyes/240x240/dragon.h"
-//#include "eyes/240x240/firebox.h"
-//#include "eyes/240x240/fish.h"
+#include "eyes/240x240/firebox.h"
+#include "eyes/240x240/fish.h"
 #include "eyes/240x240/fizzgig.h"
-//#include "eyes/240x240/flame.h"
-//#include "eyes/240x240/hazel.h"
+#include "eyes/240x240/flame.h"
+#include "eyes/240x240/hazel.h"
 #include "eyes/240x240/hypnoRed.h"
-//#include "eyes/240x240/leopard.h"
-//#include "eyes/240x240/newt.h"
+#include "eyes/240x240/leopard.h"
+#include "eyes/240x240/newt.h"
 #include "eyes/240x240/skull.h"
 #include "eyes/240x240/snake.h"
-//#include "eyes/240x240/spikes.h"
+#include "eyes/240x240/spikes.h"
 #include "eyes/240x240/toonstripe.h"
 
 #include "eyes/EyeController.h"
@@ -43,29 +43,29 @@
 #endif
 
 // A list of all the different eye definitions we want to use
-std::array<std::array<EyeDefinition, 2>, 13> eyeDefinitions{{
-//                                                               {anime::left, anime::right},
+std::array<std::array<EyeDefinition, 2>, 23> eyeDefinitions{{
                                                                {bigBlue::eye, bigBlue::eye},
-//                                                               {blueFlame1::eye, blueFlame1::eye},
-//                                                               {blueFlame2::eye, blueFlame2::eye},
-                                                               {brown::eye, brown::eye},
+                                                               {blueFlame1::eye, blueFlame1::eye},
                                                                {cat::eye, cat::eye},
                                                                {demon::left, demon::right},
                                                                {doe::left, doe::right},
+                                                               {hypnoRed::eye, hypnoRed::eye},
                                                                {doomRed::eye, doomRed::eye},
+                                                               {anime::left, anime::right},
+                                                               {blueFlame2::eye, blueFlame2::eye},
+                                                               {brown::eye, brown::eye},
                                                                {doomSpiral::left, doomSpiral::right},
                                                                {dragon::eye, dragon::eye},
-//                                                               {firebox::eye, firebox::eye},
-//                                                               {fish::eye, fish::eye},
+                                                               {firebox::eye, firebox::eye},
+                                                               {fish::eye, fish::eye},
                                                                {fizzgig::eye, fizzgig::eye},
-//                                                               {flame::eye, flame::eye},
-//                                                               {hazel::eye, hazel::eye},
-                                                               {hypnoRed::eye, hypnoRed::eye},
-//                                                               {leopard::left, leopard::right},
-//                                                               {newt::eye, newt::eye},
-                                                               {skull::eye, skull::eye},
+                                                               {flame::eye, flame::eye},
                                                                {snake::eye, snake::eye},
-//                                                                {spikes::eye, spikes::eye}
+                                                               {hazel::eye, hazel::eye},
+                                                               {leopard::left, leopard::right},
+                                                               {newt::eye, newt::eye},
+                                                               {skull::eye, skull::eye},
+                                                               {spikes::eye, spikes::eye},
                                                                {toonstripe::eye, toonstripe::eye},
                                                            }
 };
