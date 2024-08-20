@@ -95,12 +95,12 @@ ST7789_Config eyeInfo[] = {
 };
 #endif
 
-constexpr uint32_t EYE_DURATION_MS{4'000};
+constexpr uint32_t EYE_DURATION_MS{30'000};
 
 /// The speed of the SPI bus. For maximum performance, set this as high as you can get away with.
 /// It will depend on the displays themselves, wire lengths, shielding/interference etc. My
 /// setup works up to about 90,000,000. At 100,000,000 I start seeing corruption on the displays.
-constexpr uint32_t SPI_SPEED{30'000'000};
+constexpr uint32_t SPI_SPEED{80'000'000};
 
 // Set to -1 to disable the blink button and/or joystick
 constexpr int8_t BLINK_PIN{-1};

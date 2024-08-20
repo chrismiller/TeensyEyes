@@ -87,9 +87,16 @@ void loop() {
 
   // Switch eyes periodically
   static elapsedMillis eyeTime{};
-  if (eyeTime > EYE_DURATION_MS) {
+  static boolean evenIteration{};
+  if ((evenIteration && (eyeTime > EYE_DURATION_MS / 15)) || (!evenIteration && (eyeTime > EYE_DURATION_MS))) {
     nextEye();
+    Serial.print("Changing to eye ");
+    Serial.println(defIndex);
     eyeTime = 0;
+    if (defIndex == 0) {
+      // We've been through all the eyes, adjust the timing so we cycle through them faster/slower this time around
+      evenIteration = !evenIteration;
+    }
   }
 
   // Blink on button press
