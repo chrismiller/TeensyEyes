@@ -3,7 +3,7 @@
 ### Introduction
 
 This project is my take on "[Uncanny Eyes](https://github.com/adafruit/Uncanny_Eyes)", adapted for [Teensy 4.x](https://www.pjrc.com/store/teensy40.html)
-microcontrollers. It renders animated eyes on round GC9A01A LCD screens. See the video below for an example of the eyes in action.
+microcontrollers. It renders animated eyes on round GC9A01 LCD screens. See the video below for an example of the eyes in action.
 
 This is all still very much a work in progress. The aim is to turn this into a library that is fully configurable and
 easily integrated with your own Teensy projects.
@@ -27,7 +27,11 @@ Here's a video of the eyes in action:
 
 [![Teensy Eyes](http://img.youtube.com/vi/Ke1SJ8-6zJw/0.jpg)](https://www.youtube.com/watch?v=Ke1SJ8-6zJw "Teensy Eyes")
 
-### Creating Your Own Eyes
+### 3D Printed Enclosure for the GC9A01 Screens
+
+I've made some cases for the GC9A01 screens that you can print. More details and the links to the models are available [here](https://forum.pjrc.com/index.php?threads/uncanny-eyes-is-getting-expensive.71068/page-5#post-333711).
+
+### Creating Your Own Animated Eyes
 Each type of eye is defined with a config.eye JSON file specifying various parameters of the eye, pupil, iris and
 sclera, plus (optional) bitmaps that define the extents of the upper and lower eyelids, along with any textures for the
 iris and sclera.
