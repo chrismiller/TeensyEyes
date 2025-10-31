@@ -7,6 +7,11 @@ static const std::vector<MovementDefinition> movements{
         1'000
     },
     MovementDefinition{
+      new RandomMovement(),
+      new RandomMovement(),
+      10'000
+    },
+    MovementDefinition{
         new CircularMovement(4000, true),
         new CircularMovement(4000),
         10'000

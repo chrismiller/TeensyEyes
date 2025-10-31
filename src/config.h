@@ -3,8 +3,8 @@
 #include "eyes/eyes.h"
 
 // Enable the eye(s) you want to #include -- these are large graphics tables for various eyes:
-#include "eyes/240x240/bigBlue.h"
 #include "eyes/240x240/anime.h"
+#include "eyes/240x240/bigBlue.h"
 #include "eyes/240x240/blueFlame1.h"
 #include "eyes/240x240/blueFlame2.h"
 #include "eyes/240x240/brown.h"
@@ -43,29 +43,29 @@
 #endif
 
 // A list of all the different eye definitions we want to use
-std::array<std::array<EyeDefinition, 2>, 23> eyeDefinitions{{
+std::array<std::array<EyeDefinition, 2>, 22> eyeDefinitions{{
                                                                {bigBlue::eye, bigBlue::eye},
                                                                {blueFlame1::eye, blueFlame1::eye},
+                                                               {brown::eye, brown::eye},
                                                                {cat::eye, cat::eye},
                                                                {demon::left, demon::right},
                                                                {doe::left, doe::right},
-                                                               {hypnoRed::eye, hypnoRed::eye},
                                                                {doomRed::eye, doomRed::eye},
-                                                               {anime::left, anime::right},
-                                                               {blueFlame2::eye, blueFlame2::eye},
-                                                               {brown::eye, brown::eye},
                                                                {doomSpiral::left, doomSpiral::right},
                                                                {dragon::eye, dragon::eye},
                                                                {firebox::eye, firebox::eye},
+                                                               {blueFlame2::eye, blueFlame2::eye},
                                                                {fish::eye, fish::eye},
                                                                {fizzgig::eye, fizzgig::eye},
                                                                {flame::eye, flame::eye},
-                                                               {snake::eye, snake::eye},
+                                                               {anime::left, anime::right},
                                                                {hazel::eye, hazel::eye},
+                                                               {hypnoRed::eye, hypnoRed::eye},
                                                                {leopard::left, leopard::right},
                                                                {newt::eye, newt::eye},
                                                                {skull::eye, skull::eye},
-                                                               {spikes::eye, spikes::eye},
+                                                               {snake::eye, snake::eye},
+//                                                                {spikes::eye, spikes::eye}
                                                                {toonstripe::eye, toonstripe::eye},
                                                            }
 };
@@ -95,10 +95,10 @@ ST7789_Config eyeInfo[] = {
 };
 #endif
 
-constexpr uint32_t EYE_DURATION_MS{30'000};
+constexpr uint32_t EYE_DURATION_MS{20'000};
 
 /// The speed of the SPI bus. For maximum performance, set this as high as you can get away with.
-/// It will depend on the displays themselves, wire lengths, shielding/interference etc. My
+/// It will depend on the displays themselves, wire lengths, shielding/interference, etc. My
 /// setup works up to about 90,000,000. At 100,000,000 I start seeing corruption on the displays.
 constexpr uint32_t SPI_SPEED{80'000'000};
 
@@ -107,12 +107,12 @@ constexpr int8_t BLINK_PIN{-1};
 constexpr int8_t JOYSTICK_X_PIN{-1};
 constexpr int8_t JOYSTICK_Y_PIN{-1};
 constexpr int8_t LIGHT_PIN{-1};
-constexpr int8_t LEFT_FEELER_LR_PIN{-1};
-constexpr int8_t LEFT_FEELER_UD_PIN{-1};
-constexpr int8_t RIGHT_FEELER_LR_PIN{-1};
-constexpr int8_t RIGHT_FEELER_UD_PIN{-1};
-constexpr int8_t FEELER_BUTTON_PIN{-1};
-constexpr int8_t USE_PERSON_SENSOR{false};
+constexpr int8_t LEFT_FEELER_LR_PIN{33};    // Green wire
+constexpr int8_t LEFT_FEELER_UD_PIN{34};    // Blue wire
+constexpr int8_t RIGHT_FEELER_LR_PIN{35};   // Purple wire
+constexpr int8_t RIGHT_FEELER_UD_PIN{36};   // Grey wire
+constexpr int8_t FEELER_BUTTON_PIN{23};
+constexpr int8_t USE_PERSON_SENSOR{true};
 
 #ifdef USE_GC9A01A
 EyeController<2, GC9A01A_Display> *eyes{};

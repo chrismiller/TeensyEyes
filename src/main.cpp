@@ -40,7 +40,6 @@ bool hasPersonSensor() {
 /// INITIALIZATION -- runs once at startup ----------------------------------
 void setup() {
   Serial.begin(115200);
-  while (!Serial && millis() < 2000);
   delay(200);
   DumpMemoryInfo();
   Serial.println("Init");
@@ -88,7 +87,7 @@ void loop() {
   // Switch eyes periodically
   static elapsedMillis eyeTime{};
   static boolean evenIteration{};
-  if ((evenIteration && (eyeTime > EYE_DURATION_MS / 15)) || (!evenIteration && (eyeTime > EYE_DURATION_MS))) {
+  if ((evenIteration && (eyeTime > EYE_DURATION_MS / 10)) || (!evenIteration && (eyeTime > EYE_DURATION_MS))) {
     nextEye();
     Serial.print("Changing to eye ");
     Serial.println(defIndex);
@@ -120,7 +119,7 @@ void loop() {
   static float prevTargetX{64.0};
   static float prevTargetY{64.0};
   if (hasPersonSensor() && personSensor.read()) {
-    // Find the closest face that is facing the camera, if any
+    // Find the closest face facing the camera, if any
     int maxSize = 0;
     person_sensor_face_t maxFace{};
     
@@ -147,7 +146,7 @@ void loop() {
       prevTargetY = targetY;
       eyes->setTargetPosition(averageX, averageY, 100);
     } else if (personSensor.timeSinceFaceDetectedMs() > 2'000 && !eyes->autoMoveEnabled()) {
-      // We haven't seen a face for a while so enable automove
+      // We haven't seen a face for a while, give up on the face tracking and enable automove
       eyes->setAutoMove(true);
       prevTargetX = 64.0f;
       prevTargetY = 64.0f;
