@@ -371,6 +371,18 @@ private:
     const EyelidParams &eyelids = eye.definition->eyelids;
     const uint16_t eyelidColor = eyelids.color;
     const uint8_t *displacement = eye.definition->displacement;
+    // Local copies so stores through the framebuffer pointer (also uint16_t) can't be
+    // assumed to alias them, which would force a reload on every pixel
+    const uint16_t scleraAngle = eye.currentScleraAngle;
+    const uint16_t irisAngle = eye.currentIrisAngle;
+
+    // When the display has a framebuffer we write pixels straight into it, which is much
+    // faster than going through drawPixel() for every pixel. Those writes bypass the
+    // display's dirty-region tracking, so we accumulate the written area here and report
+    // it with a single markDirty() call at the end.
+    uint16_t *const frameBuffer = display.frameBuffer();
+    int32_t dirtyMinX{screenWidth}, dirtyMaxX{-1};
+    int32_t dirtyMinY{screenHeight}, dirtyMaxY{-1};
 
     for (uint32_t screenX = 0; screenX < screenWidth; screenX++) {
       // Determine the extents of the eye that need to be drawn, based on where the eyelids
@@ -393,7 +405,6 @@ private:
       // X and Y, so we can just swap axes to look up the Y displacement using the same table.
       const uint8_t *displaceX, *displaceY;
       int32_t xmul; // Sign of X displacement: +1 or -1
-      int32_t doff; // Offset into displacement arrays
       if (screenX < (screenWidth / 2)) {
         // Left half of screen, so we need to horizontally flip our displacement map lookup
         displaceX = &displacement[displacementMapSize - 1 - screenX];
@@ -419,11 +430,11 @@ private:
 
       // draw everything else
       const int32_t xx = xPositionOverMap + screenX;
-      for (uint32_t screenY = minY; screenY < maxY; screenY++) {
-        uint32_t p;
 
+      // Computes the color of a single pixel of the eyeball (sclera/iris/pupil/eyelid)
+      auto computeColor = [&](uint32_t screenY) -> uint16_t {
         const int32_t yy = yPositionOverMap + screenY;
-        int32_t dx, dy;
+        int32_t dx, dy, doff;
         if (screenY < displacementMapSize) {
           // We're in the top half of the screen, so we need to vertically flip the displacement map lookup
           doff = displacementMapSize - screenY - 1;
@@ -434,89 +445,109 @@ private:
           dy = displaceY[doff];
         }
         dx = displaceX[doff * displacementMapSize];
-        if (dx < 255) {
-          // We're inside the eyeball (sclera/iris/pupil) area
-          dx *= xmul;  // Flip x offset sign if in left half of screen
-          int32_t mx = xx + dx;
-          int32_t my = yy + dy;
+        if (dx >= 255) {
+          // We're outside the eye area, i.e. this must be on an eyelid
+          return eyelidColor;
+        }
 
-          if (mx >= 0 && mx < mapDiameter && my >= 0 && my < mapDiameter) {
-            // We're inside the polar angle/distance maps
-            uint32_t angle;
-            int32_t distance, moff;
-            if (my >= mapRadius) {
-              my -= mapRadius;
-              if (mx >= mapRadius) {
-                // Quadrant 1 (bottom right), so we can use the angle/dist lookups directly
-                mx -= mapRadius;
-                moff = my * mapRadius + mx;
-                angle = angleLookup[moff];
-                distance = distanceLookup[moff];
-              } else {
-                // Quadrant 2 (bottom left), so rotate angle by 270 degrees clockwise (768) and mirror distance on X axis
-                mx = mapRadius - mx - 1;
-                angle = angleLookup[mx * mapRadius + my] + 768;
-                distance = distanceLookup[my * mapRadius + mx];
-              }
-            } else {
-              if (mx < mapRadius) {
-                // Quadrant 3 (top left), so rotate angle by 180 degrees and mirror distance on the X and Y axes
-                mx = mapRadius - mx - 1;
-                my = mapRadius - my - 1;
-                moff = my * mapRadius + mx;
-                angle = angleLookup[moff] + 512;
-                distance = distanceLookup[moff];
-              } else {
-                // Quadrant 4 (top right), so rotate angle by 90 degrees clockwise (256) and mirror distance on Y axis
-                mx -= mapRadius;
-                my = mapRadius - my - 1;
-                angle = angleLookup[mx * mapRadius + my] + 256;
-                distance = distanceLookup[my * mapRadius + mx];
-              }
-            }
+        // We're inside the eyeball (sclera/iris/pupil) area
+        dx *= xmul;  // Flip x offset sign if in left half of screen
+        int32_t mx = xx + dx;
+        int32_t my = yy + dy;
 
-            // Convert the polar angle/distance to texture map coordinates
-            if (distance < 128) {
-              // We're in the sclera
-              if (hasScleraTexture) {
-                angle = ((angle + eye.currentScleraAngle) & 1023) ^ sclera.mirror;
-                const int32_t tx = (angle & 1023) * sclera.texture.width / 1024; // Texture map x/y
-                const int32_t ty = distance * sclera.texture.height / 128;
-                p = sclera.texture.get(tx, ty);
-              } else {
-                p = sclera.color;
-              }
-            } else if (distance < 255) {
-              // Either the iris or pupil
-              if (distance >= irisSize) {
-                // Pupil
-                p = pupilColor;
-              } else {
-                // Iris
-                if (hasIrisTexture) {
-                  angle = ((angle + eye.currentIrisAngle) & 1023) ^ iris.mirror;
-                  const int32_t tx = (angle & 1023) * iris.texture.width / 1024;
-                  const int32_t ty = (distance - 128) * iPupilFactor / 32768;
-                  p = iris.texture.get(tx, ty);
-                } else {
-                  p = iris.color;
-                }
-              }
-            } else {
-              // Back of eye
-              p = backColor;
-            }
+        if (mx < 0 || mx >= mapDiameter || my < 0 || my >= mapDiameter) {
+          // We're outside the polar map so just use the back-of-eye color
+          return backColor;
+        }
+
+        // We're inside the polar angle/distance maps
+        uint32_t angle;
+        int32_t distance, moff;
+        if (my >= mapRadius) {
+          my -= mapRadius;
+          if (mx >= mapRadius) {
+            // Quadrant 1 (bottom right), so we can use the angle/dist lookups directly
+            mx -= mapRadius;
+            moff = my * mapRadius + mx;
+            angle = angleLookup[moff];
+            distance = distanceLookup[moff];
           } else {
-            // We're outside the polar map so just use the back-of-eye color
-            p = backColor;
+            // Quadrant 2 (bottom left), so rotate angle by 270 degrees clockwise (768) and mirror distance on X axis
+            mx = mapRadius - mx - 1;
+            angle = angleLookup[mx * mapRadius + my] + 768;
+            distance = distanceLookup[my * mapRadius + mx];
           }
         } else {
-          // We're outside the eye area, i.e. this must be on an eyelid
-          p = eyelidColor;
+          if (mx < mapRadius) {
+            // Quadrant 3 (top left), so rotate angle by 180 degrees and mirror distance on the X and Y axes
+            mx = mapRadius - mx - 1;
+            my = mapRadius - my - 1;
+            moff = my * mapRadius + mx;
+            angle = angleLookup[moff] + 512;
+            distance = distanceLookup[moff];
+          } else {
+            // Quadrant 4 (top right), so rotate angle by 90 degrees clockwise (256) and mirror distance on Y axis
+            mx -= mapRadius;
+            my = mapRadius - my - 1;
+            angle = angleLookup[mx * mapRadius + my] + 256;
+            distance = distanceLookup[my * mapRadius + mx];
+          }
         }
-        display.drawPixel(screenX, screenY, p);
-      } // end column
+
+        // Convert the polar angle/distance to texture map coordinates
+        if (distance < 128) {
+          // We're in the sclera
+          if (hasScleraTexture) {
+            angle = ((angle + scleraAngle) & 1023) ^ sclera.mirror;
+            const int32_t tx = (angle & 1023) * sclera.texture.width / 1024; // Texture map x/y
+            const int32_t ty = distance * sclera.texture.height / 128;
+            return sclera.texture.get(tx, ty);
+          }
+          return sclera.color;
+        }
+        if (distance < 255) {
+          // Either the iris or pupil
+          if (distance >= irisSize) {
+            // Pupil
+            return pupilColor;
+          }
+          // Iris
+          if (hasIrisTexture) {
+            angle = ((angle + irisAngle) & 1023) ^ iris.mirror;
+            const int32_t tx = (angle & 1023) * iris.texture.width / 1024;
+            const int32_t ty = (distance - 128) * iPupilFactor / 32768;
+            return iris.texture.get(tx, ty);
+          }
+          return iris.color;
+        }
+        // Back of eye
+        return backColor;
+      };
+
+      if (frameBuffer != nullptr) {
+        // Fast path: write pixels directly into the framebuffer
+        uint16_t *pixel = &frameBuffer[minY * screenWidth + screenX];
+        for (uint32_t screenY = minY; screenY < maxY; screenY++) {
+          *pixel = computeColor(screenY);
+          pixel += screenWidth;
+        }
+        if (maxY > minY) {
+          dirtyMinX = std::min(dirtyMinX, static_cast<int32_t>(screenX));
+          dirtyMaxX = std::max(dirtyMaxX, static_cast<int32_t>(screenX));
+          dirtyMinY = std::min(dirtyMinY, static_cast<int32_t>(minY));
+          dirtyMaxY = std::max(dirtyMaxY, static_cast<int32_t>(maxY) - 1);
+        }
+      } else {
+        for (uint32_t screenY = minY; screenY < maxY; screenY++) {
+          display.drawPixel(screenX, screenY, computeColor(screenY));
+        }
+      }
     } // end scanline
+
+    if (frameBuffer != nullptr && dirtyMaxX >= 0) {
+      // Report the area we wrote directly to the framebuffer, so it gets sent to the screen
+      display.markDirty(dirtyMinX, dirtyMinY, dirtyMaxX, dirtyMaxY);
+    }
 
     eye.drawAll = false;
   }
